@@ -80,10 +80,16 @@ value (Team, All, RG, blank, …) normalizes to **Unassigned**. See `web/src/lib
 5. Scoped undo/redo (confirm semantics first), bulk actions, import/export.
 6. Deploy config + docs.
 
-## Open items (need a human decision — ask, don't assume)
-- **Hosting/compliance:** managed Supabase vs. self-hosted on-prem?
-- **SSO:** email/password only, or Google Workspace / other?
-- **Undo semantics:** confirm per-user scoped undo (via `action_log`) before building.
-  Replaces the legacy global whole-state snapshot (unsafe with multiple users).
+## Decisions (confirmed 2026-07-02)
+- **Hosting:** **Managed Supabase** + static frontend host. Keep code host-agnostic
+  (env config only) so a self-hosted switch stays cheap.
+- **Auth:** **Email/password only** for now. Google SSO deferred (stub left commented
+  in `supabase/config.toml`).
+- **Undo:** **Per-user scoped undo** via `action_log` — Ctrl+Z inverts only the
+  current user's most recent action, and refuses if that row was since changed by
+  someone else. Keep the legacy keybindings (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z) and
+  ↶/↷ header buttons; native text-field undo still works while an input is focused.
+
+## Open items (still need a human decision — ask, don't assume)
 - **Roster/roles:** exact `admin` vs `analyst` write/delete permissions per table.
   Current RLS in `0002_rls.sql` is a starting default, not final.
