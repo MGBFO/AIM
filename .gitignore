@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+web/node_modules/
+
+# build output
+web/dist/
+dist/
+
+# env / secrets — never commit real keys
+.env
+.env.local
+.env.*.local
+web/.env
+web/.env.local
+
+# supabase local stack
+supabase/.branches/
+supabase/.temp/
+**/.DS_Store
+
+# logs / caches
+*.log
+.vite/
+coverage/
+.python-version
+__pycache__/
+.venv/
+
+# generated seed (regenerate with scripts/build_seed.py); reference seed is committed
+scripts/seed.json
+
+# tsc incremental build info
+*.tsbuildinfo
