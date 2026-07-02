@@ -13,6 +13,26 @@ spec. See [`CLAUDE.md`](./CLAUDE.md) for the operating manual and conventions.
 - [Supabase CLI](https://supabase.com/docs/guides/cli) + Docker (for the local DB stack)
 - Python 3.11+ with `openpyxl` (only to regenerate the seed from the xlsx)
 
+## Get a shareable app link (one-click deploy, no terminal)
+
+To hand a non-technical tester a real hosted URL, deploy to a static host. A
+signed-in team/IT member clicks once — no terminal, no local setup.
+
+- **Demo mode (fastest, for user acceptance testing):** deploy with **no** env
+  vars. The hosted app runs fully client-side on seeded sample data (data saved
+  in each tester's browser). Good for clicking through every module and add/edit/
+  delete. Multi-user/shared data/realtime are *not* active in this mode.
+- **Full mode (multi-user):** set `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`
+  in the host and connect a Supabase project — see [`docs/DEPLOY.md`](./docs/DEPLOY.md).
+
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/mgbfo/aim)
+&nbsp;
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mgbfo/aim)
+
+Build settings are pre-committed (`netlify.toml`, `vercel.json`): build
+`npm run build`, publish `web/dist`. After it deploys, share the host's URL.
+User-testing steps are in [`docs/UAT.md`](./docs/UAT.md).
+
 ## Quick look — demo mode (no backend, ~1 min)
 Just want to click through the app? With **no** Supabase configured it runs in
 local **demo mode**: seeded from the reference data, stored in your browser, no
