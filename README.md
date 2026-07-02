@@ -32,6 +32,9 @@ npm run dev                      # Vite dev server at http://127.0.0.1:5173
 npm run check   # typecheck + lint + test + build — the bar for every version
 ```
 
+## Deploy
+Managed Supabase + static host (Vercel/Netlify). See [`docs/DEPLOY.md`](./docs/DEPLOY.md).
+
 ## Layout
 | Path | What |
 | --- | --- |

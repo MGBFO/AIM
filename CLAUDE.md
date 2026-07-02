@@ -77,10 +77,17 @@ value (Team, All, RG, blank, …) normalizes to **Unassigned**. See `web/src/lib
 1. **(done)** Scaffold + CLAUDE.md + local Supabase + schema migration + seed.
 2. **(done)** Auth (email/password) + RLS (all users admin) + app shell (header, nav,
    tokens, ToastHost/Modal/Confirm/ErrorBoundary, AnalystPicker, DateCell, SortHeader). ← review here
-3. Read-only port of all six modules against seeded data.
-4. Editing + Realtime + optimistic concurrency, module by module.
-5. Scoped undo/redo (confirm semantics first), bulk actions, import/export.
-6. Deploy config + docs.
+3. **(done)** Port of all six modules against seeded data.
+4. **(done)** Editing + Realtime + optimistic concurrency (see `AimProvider`).
+5. **(done)** Session-scoped undo/redo, bulk actions, import/export.
+6. **(done)** Deploy config (Vercel/Netlify) + docs (`docs/DEPLOY.md`).
+
+### Architecture note
+`AimProvider` (`web/src/components/AimProvider.tsx`) loads all tables, subscribes
+to Realtime, and persists mutations via a **diff-sync `patch`** with optimistic
+concurrency (`updated_at` predicate → conflict toast + refetch). Modules keep the
+legacy `api`/`patch` contract via `useAim()`. DB rows are snake_case; the domain
+model is camelCase — mappers live in `web/src/lib/domain.ts`.
 
 ## Decisions (confirmed 2026-07-02)
 - **Hosting:** **Managed Supabase** + static frontend host. Keep code host-agnostic
