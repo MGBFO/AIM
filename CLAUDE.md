@@ -24,8 +24,9 @@ This is not a redesign; keep the look, feel, and every feature.
 ```
 web/                Vite + React + TS frontend
   src/lib/          supabase client, dates, sort, roster, types
-  src/hooks/        useTrips, useMonitoring, useTasks, useRealtime, useUndo … (later)
-  src/components/   shared UI (Modal, Confirm, Toast, DateCell, SortHeader …) (later)
+  src/hooks/        useAuth … (useTrips, useMonitoring, useTasks, useRealtime, useUndo later)
+  src/components/   AuthProvider, Login, ToastHost, Modal, Confirm, ErrorBoundary,
+                    AnalystPicker, DateCell, SortHeader
   src/modules/      Dashboard, Travel, Monitoring, PRC, Bandwidth, Calendar (later)
   src/styles/tokens.css   design system, ported verbatim from the HTML
 supabase/migrations/  SQL schema + RLS + realtime (source of truth for the DB)
@@ -73,8 +74,9 @@ value (Team, All, RG, blank, …) normalizes to **Unassigned**. See `web/src/lib
   modules. Every version is a git commit; tag milestones.
 
 ## Delivery sequencing
-1. **(done)** Scaffold + CLAUDE.md + local Supabase + schema migration + seed. ← review here
-2. Auth + RLS + app shell (header, nav, tokens, Toast/Modal/Confirm, DateCell, SortHeader).
+1. **(done)** Scaffold + CLAUDE.md + local Supabase + schema migration + seed.
+2. **(done)** Auth (email/password) + RLS (all users admin) + app shell (header, nav,
+   tokens, ToastHost/Modal/Confirm/ErrorBoundary, AnalystPicker, DateCell, SortHeader). ← review here
 3. Read-only port of all six modules against seeded data.
 4. Editing + Realtime + optimistic concurrency, module by module.
 5. Scoped undo/redo (confirm semantics first), bulk actions, import/export.
@@ -89,7 +91,9 @@ value (Team, All, RG, blank, …) normalizes to **Unassigned**. See `web/src/lib
   current user's most recent action, and refuses if that row was since changed by
   someone else. Keep the legacy keybindings (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z) and
   ↶/↷ header buttons; native text-field undo still works while an input is focused.
+- **Roles:** **all authenticated users are admins** — full read/write/delete on every
+  table (`0004_all_admins.sql` makes `is_admin()` true for any signed-in user). The
+  `role` column is retained if per-role restrictions are reintroduced later.
 
 ## Open items (still need a human decision — ask, don't assume)
-- **Roster/roles:** exact `admin` vs `analyst` write/delete permissions per table.
-  Current RLS in `0002_rls.sql` is a starting default, not final.
+- None outstanding. (Hosting, auth, undo, and roles are all decided above.)

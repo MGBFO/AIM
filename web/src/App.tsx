@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import logo from './assets/logo.png';
+import { useAuth } from './hooks/useAuth';
+import { ToastHost } from './components/ToastHost';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { Login } from './components/Login';
 
-/**
- * App shell — header, brand, nav, and undo/redo buttons ported from the spec.
- * Modules are stubs for now (Step 1 scaffold). Real modules land in later
- * versions per the delivery sequencing. Nav order is fixed and must match spec.
- */
+type ModuleKey = 'dashboard' | 'travel' | 'monitoring' | 'prc' | 'bandwidth' | 'calendar';
+
+/** Fixed nav order — must match the spec. */
 const NAV: [ModuleKey, string][] = [
   ['dashboard', 'Dashboard'],
   ['travel', 'Travel Schedule'],
@@ -15,10 +17,27 @@ const NAV: [ModuleKey, string][] = [
   ['calendar', 'Workflow Calendar'],
 ];
 
-type ModuleKey = 'dashboard' | 'travel' | 'monitoring' | 'prc' | 'bandwidth' | 'calendar';
-
 export default function App() {
+  const { loading, session } = useAuth();
+  return (
+    <>
+      <ToastHost />
+      {loading ? (
+        <div className="empty" style={{ margin: 80 }}>Loading…</div>
+      ) : session ? (
+        <Shell />
+      ) : (
+        <Login />
+      )}
+    </>
+  );
+}
+
+/** Authenticated app shell: header, brand, nav, undo/redo, sign-out. */
+function Shell() {
+  const { user, signOut } = useAuth();
   const [module, setModule] = useState<ModuleKey>('dashboard');
+  const label = user?.user_metadata?.display_name || user?.email || 'Signed in';
 
   return (
     <>
@@ -41,17 +60,25 @@ export default function App() {
           <button title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
           <button title="Redo (Ctrl+Y)" aria-label="Redo">↷</button>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 10 }}>
+          <span className="brand-sub" title={user?.email ?? ''} style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {label}
+          </span>
+          <button className="btn ghost sm" onClick={() => void signOut()}>Sign out</button>
+        </div>
       </header>
-      <main className="module">
-        <div className="module-head">
-          <div className="module-title">{NAV.find(([k]) => k === module)?.[1]}</div>
-          <div className="module-meta">Scaffold — module not yet ported</div>
-        </div>
-        <div className="empty">
-          This is the Step&nbsp;1 scaffold. The <b>{module}</b> module will be ported against
-          seeded Supabase data in a later version.
-        </div>
-      </main>
+      <ErrorBoundary key={module}>
+        <main className="module">
+          <div className="module-head">
+            <div className="module-title">{NAV.find(([k]) => k === module)?.[1]}</div>
+            <div className="module-meta">Module not yet ported</div>
+          </div>
+          <div className="empty">
+            Auth &amp; app shell are live. The <b>{module}</b> module will be ported against
+            seeded Supabase data in V3.
+          </div>
+        </main>
+      </ErrorBoundary>
     </>
   );
 }
