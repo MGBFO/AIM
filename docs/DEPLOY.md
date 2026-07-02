@@ -4,6 +4,99 @@ Target: **managed Supabase** (Postgres + Auth + Realtime) + a **static frontend
 host** (Vercel or Netlify). Hosting is environment-config only, so switching
 hosts — or moving to self-hosted Supabase later — is just changing env values.
 
+---
+
+## 0. Acceptance gate — local smoke-run (do this first)
+
+Run the whole stack locally against a fresh DB and click through every module
+before any cloud deploy. Requires the Supabase CLI + Docker.
+
+```bash
+cp .env.example web/.env.local          # then paste values from `supabase status`
+npm install
+supabase start                          # boots Postgres/Auth/Realtime/Studio in Docker
+supabase db reset                       # applies ALL migrations in supabase/migrations/
+npm run seed:build                      # xlsx -> scripts/seed.json (optional; reference seed is committed)
+
+# Copy the two values printed by `supabase status` (API URL + service_role key):
+export SUPABASE_URL="http://127.0.0.1:54321"
+export SUPABASE_SERVICE_ROLE_KEY="<service_role key from `supabase status`>"
+npm run seed:import
+
+npm run dev                             # http://127.0.0.1:5173
+```
+
+`supabase status` prints the **API URL**, **anon key**, and **service_role key**.
+Put the API URL + anon key in `web/.env.local` (`VITE_SUPABASE_URL`,
+`VITE_SUPABASE_ANON_KEY`); the service_role key is only for the seed import
+(`SUPABASE_SERVICE_ROLE_KEY`) above and the integration test below.
+
+### Click-through checklist (expected results)
+1. **Login** — the app opens on the sign-in card. Click **"Need an account? Sign up"**,
+   create a user, then sign in. → Header appears with your email and **Sign out**.
+2. **Dashboard** — Most Recent / Next trips tables populated; Monitoring quarter
+   table shows counts; PRC "Next Projected Meeting" card filled. Add a Useful Link
+   → row appears; **Show/Hide** toggles the password; **Open ↗** opens the URL.
+3. **Travel** — Upcoming / Potential / Archived sections have rows; ★ marks
+   permanent trips. Select an upcoming row → **Add to Analyst Bandwidth** →
+   success toast; a second click on the same row → "Task already exists for this
+   source." Edit a date inline → persists.
+4. **Monitoring** — rows grouped Level 1→3, oldest Monitoring Date first, blanks
+   last; overdue rows render red (`mon-ovr`). Inline change Status→Completed with
+   a Monitoring Date set → Most Recent/Monitoring Date advance. Select 2+ rows →
+   **Bulk Edit**. **Import XLSX** with `scripts/source/Monitoring.xlsx` → the
+   diagnostics modal reports rows imported. **Export** downloads a CSV.
+5. **PRC** — Meeting Schedule + Archive render; edit a Projected Next date inline;
+   **Mapping** and **Fund List** popups open; delete a stored Sharepoint URL.
+6. **Analyst Bandwidth** — per-analyst cards; Period filter defaults to **Current
+   Month**; summary cards reflect the filtered set; completing a Recurring task
+   advances its due date.
+7. **Workflow Calendar** — month grid with multi-day travel bars + task chips;
+   click a chip to edit, a bar to see trip detail.
+8. **Realtime (two browsers)** — open the app in two windows signed in as two
+   users. Edit a row in one → it updates in the other within ~1s, no refresh.
+9. **Undo/redo** — make an edit, press **Ctrl+Z** (or the ↶ button) → it reverts;
+   **Ctrl+Y** / ↷ re-applies. While typing in a field, Ctrl+Z does native text
+   undo (does not trigger app undo).
+
+### Expected console / behavior — and what's a real problem
+- **OK / expected:** brief "Loading data…" on first paint; a Realtime
+  `SUBSCRIBED` channel; a **"This record was just updated by someone else —
+  reloaded."** toast if two users edit the *same* row at once (that's the
+  optimistic-concurrency guard working, not a bug).
+- **Investigate:** `Missing VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY` in the
+  console → `web/.env.local` isn't set/loaded (restart `npm run dev` after
+  editing it). Empty modules → the seed import didn't run or failed. A red
+  **error-boundary panel** ("Something failed to load") → a real module error;
+  capture the console stack. Repeated conflict toasts on *single-user* edits →
+  the row's `updated_at` isn't advancing (check the `set_updated_at` trigger).
+- **Gate:** zero uncaught console errors and no error-boundary across all six
+  modules = acceptance passed.
+
+## 0b. Automated integration test (two-client Realtime + conflict)
+
+`web/integration/realtime.itest.ts` verifies Realtime propagation and the
+same-row conflict against a **real local stack**. It is isolated: excluded from
+`npm run check`, opt-in via env vars, tags its rows with a unique `zzitest-…`
+marker, and deletes them in teardown. **Run it against your local stack only.**
+
+```bash
+supabase start   # if not already running
+export SUPABASE_URL="http://127.0.0.1:54321"
+export SUPABASE_SERVICE_ROLE_KEY="<service_role key from `supabase status`>"
+npm run test:integration
+```
+
+Expected: **3 passed** —
+(1) client B receives A's INSERT, (2) client B receives A's UPDATE,
+(3) a stale same-row update matches 0 rows (conflict) with no lost write.
+With no env vars set it prints `[itest] skipped …` and exits 0 (never fails CI).
+If it hangs on subscribe, confirm the tables are in the `supabase_realtime`
+publication (they are via `0003_realtime.sql` / `0005_useful_links.sql`) and that
+`supabase start` is healthy.
+
+---
+
 ## 1. Supabase project (backend)
 
 1. Create a project at supabase.com. Note the **Project URL**, **anon key**, and
