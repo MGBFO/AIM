@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import App from './App';
-import { AuthProvider } from './components/AuthProvider';
+
+// Force the live (Supabase) path so we can test the auth gate.
+vi.mock('./lib/config', () => ({ DEMO: false, DEMO_STORAGE_KEY: 'aim.demo.test' }));
 
 // Mock the supabase client so no network/DB is needed.
 const getSession = vi.fn();
@@ -24,27 +26,18 @@ vi.mock('./lib/supabase', () => {
   };
 });
 
-const renderApp = () =>
-  render(
-    <AuthProvider>
-      <App />
-    </AuthProvider>,
-  );
-
 beforeEach(() => getSession.mockReset());
 
-describe('App auth gating', () => {
+describe('App auth gating (live mode)', () => {
   it('shows the Login screen when there is no session', async () => {
     getSession.mockResolvedValue({ data: { session: null } });
-    renderApp();
+    render(<App />);
     expect(await screen.findByRole('button', { name: /sign in/i })).toBeInTheDocument();
   });
 
   it('shows the app shell (nav) when authenticated', async () => {
-    getSession.mockResolvedValue({
-      data: { session: { user: { email: 'a@b.com', user_metadata: {} } } },
-    });
-    renderApp();
+    getSession.mockResolvedValue({ data: { session: { user: { email: 'a@b.com', user_metadata: {} } } } });
+    render(<App />);
     expect(await screen.findByRole('button', { name: 'Analyst Bandwidth' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Dashboard' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /sign out/i })).toBeInTheDocument();

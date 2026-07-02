@@ -13,7 +13,20 @@ spec. See [`CLAUDE.md`](./CLAUDE.md) for the operating manual and conventions.
 - [Supabase CLI](https://supabase.com/docs/guides/cli) + Docker (for the local DB stack)
 - Python 3.11+ with `openpyxl` (only to regenerate the seed from the xlsx)
 
-## Getting started (local, offline)
+## Quick look — demo mode (no backend, ~1 min)
+Just want to click through the app? With **no** Supabase configured it runs in
+local **demo mode**: seeded from the reference data, stored in your browser, no
+login. Needs only Node 22.
+```bash
+npm install
+npm run dev        # open http://127.0.0.1:5173
+```
+A "Demo mode — data is stored locally in your browser" toast confirms it. Edits,
+undo/redo, import/export all work; **Sign out** resets the local demo data.
+Realtime/multi-user needs the real backend below. (Demo activates whenever
+`VITE_SUPABASE_URL` is unset; set that var to use Supabase instead.)
+
+## Getting started (local, offline, full backend)
 ```bash
 npm install                      # installs web workspace + tooling
 cp .env.example web/.env.local   # then fill in from `supabase status`
