@@ -5,17 +5,24 @@ import { AuthProvider } from './components/AuthProvider';
 
 // Mock the supabase client so no network/DB is needed.
 const getSession = vi.fn();
-vi.mock('./lib/supabase', () => ({
-  supabase: {
-    auth: {
-      getSession: () => getSession(),
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: vi.fn() } } }),
-      signInWithPassword: vi.fn(),
-      signUp: vi.fn(),
-      signOut: vi.fn(),
+vi.mock('./lib/supabase', () => {
+  const query = { select: () => Promise.resolve({ data: [], error: null }) };
+  const channel = { on() { return this; }, subscribe() { return this; } };
+  return {
+    supabase: {
+      auth: {
+        getSession: () => getSession(),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: vi.fn() } } }),
+        signInWithPassword: vi.fn(),
+        signUp: vi.fn(),
+        signOut: vi.fn(),
+      },
+      from: () => query,
+      channel: () => channel,
+      removeChannel: vi.fn(),
     },
-  },
-}));
+  };
+});
 
 const renderApp = () =>
   render(

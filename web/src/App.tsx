@@ -1,9 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import logo from './assets/logo.png';
 import { useAuth } from './hooks/useAuth';
+import { useAim } from './hooks/useAim';
+import { AimProvider } from './components/AimProvider';
 import { ToastHost } from './components/ToastHost';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Login } from './components/Login';
+import { Dashboard } from './modules/Dashboard';
+import { Travel } from './modules/Travel';
+import { Monitoring } from './modules/Monitoring';
+import { PRC } from './modules/PRC';
+import { Bandwidth } from './modules/Bandwidth';
+import { Calendar } from './modules/Calendar';
 
 type ModuleKey = 'dashboard' | 'travel' | 'monitoring' | 'prc' | 'bandwidth' | 'calendar';
 
@@ -17,6 +25,15 @@ const NAV: [ModuleKey, string][] = [
   ['calendar', 'Workflow Calendar'],
 ];
 
+const MODULES: Record<ModuleKey, () => JSX.Element> = {
+  dashboard: Dashboard,
+  travel: Travel,
+  monitoring: Monitoring,
+  prc: PRC,
+  bandwidth: Bandwidth,
+  calendar: Calendar,
+};
+
 export default function App() {
   const { loading, session } = useAuth();
   return (
@@ -25,7 +42,9 @@ export default function App() {
       {loading ? (
         <div className="empty" style={{ margin: 80 }}>Loading…</div>
       ) : session ? (
-        <Shell />
+        <AimProvider>
+          <Shell />
+        </AimProvider>
       ) : (
         <Login />
       )}
@@ -33,11 +52,28 @@ export default function App() {
   );
 }
 
-/** Authenticated app shell: header, brand, nav, undo/redo, sign-out. */
 function Shell() {
   const { user, signOut } = useAuth();
+  const { ready, undo, redo } = useAim();
   const [module, setModule] = useState<ModuleKey>('dashboard');
   const label = user?.user_metadata?.display_name || user?.email || 'Signed in';
+
+  // Ctrl/Cmd+Z / Ctrl+Y / Ctrl+Shift+Z — but let native undo work in fields.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const el = e.target as HTMLElement | null;
+      const tag = (el?.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || el?.isContentEditable) return;
+      const k = (e.key || '').toLowerCase();
+      if (k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+      else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); redo(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [undo, redo]);
+
+  const Active = MODULES[module];
 
   return (
     <>
@@ -57,8 +93,8 @@ function Shell() {
           ))}
         </nav>
         <div className="hist-btns">
-          <button title="Undo (Ctrl+Z)" aria-label="Undo">↶</button>
-          <button title="Redo (Ctrl+Y)" aria-label="Redo">↷</button>
+          <button title="Undo (Ctrl+Z)" aria-label="Undo" onClick={undo}>↶</button>
+          <button title="Redo (Ctrl+Y)" aria-label="Redo" onClick={redo}>↷</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 10 }}>
           <span className="brand-sub" title={user?.email ?? ''} style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -68,16 +104,7 @@ function Shell() {
         </div>
       </header>
       <ErrorBoundary key={module}>
-        <main className="module">
-          <div className="module-head">
-            <div className="module-title">{NAV.find(([k]) => k === module)?.[1]}</div>
-            <div className="module-meta">Module not yet ported</div>
-          </div>
-          <div className="empty">
-            Auth &amp; app shell are live. The <b>{module}</b> module will be ported against
-            seeded Supabase data in V3.
-          </div>
-        </main>
+        {ready ? <Active /> : <div className="empty" style={{ margin: 60 }}>Loading data…</div>}
       </ErrorBoundary>
     </>
   );
