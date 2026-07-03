@@ -13,10 +13,23 @@ spec. See [`CLAUDE.md`](./CLAUDE.md) for the operating manual and conventions.
 - [Supabase CLI](https://supabase.com/docs/guides/cli) + Docker (for the local DB stack)
 - Python 3.11+ with `openpyxl` (only to regenerate the seed from the xlsx)
 
-## Get a shareable app link (one-click deploy, no terminal)
+## Get a shareable app link
 
-To hand a non-technical tester a real hosted URL, deploy to a static host. A
-signed-in team/IT member clicks once — no terminal, no local setup.
+### GitHub Pages (no Vercel/Netlify account needed) — browser only
+A workflow (`.github/workflows/pages.yml`) builds the app in demo mode and
+publishes it to **https://mgbfo.github.io/AIM/**. To turn it on, in the browser:
+1. Repo **Settings → Pages → Build and deployment → Source → “GitHub Actions”**.
+2. **Actions** tab → **“Deploy UAT preview to GitHub Pages”** → **Run workflow**
+   → pick branch `claude/aim-claude-code-migration-xrkf0l` → **Run**.
+3. When it finishes (green), open **https://mgbfo.github.io/AIM/**.
+
+The Vite base path is set to `/AIM/` for this build so assets resolve (no blank
+page). Demo mode: seeded sample data, no login; each tester's edits save in their
+own browser. *(GitHub Pages on a private repo requires a plan that supports it;
+if Pages is unavailable, make the repo public or use the hosts below.)*
+
+### Netlify / Vercel (alternative one-click)
+Deploy to a static host. A signed-in team/IT member clicks once — no terminal.
 
 - **Demo mode (fastest, for user acceptance testing):** deploy with **no** env
   vars. The hosted app runs fully client-side on seeded sample data (data saved

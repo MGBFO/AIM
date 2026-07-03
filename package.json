@@ -14,13 +14,10 @@
     "test": "npm --workspace web run test",
     "test:integration": "npm --workspace web run test:integration",
     "check": "npm run typecheck && npm run lint && npm run test && npm run build",
-    "db:start": "supabase start",
-    "db:stop": "supabase stop",
-    "db:reset": "supabase db reset",
+    "db:start": "npx --yes supabase start",
+    "db:stop": "npx --yes supabase stop",
+    "db:reset": "npx --yes supabase db reset",
     "seed:build": "python3 scripts/build_seed.py",
     "seed:import": "npm --workspace web run seed:import"
-  },
-  "devDependencies": {
-    "supabase": "^1.200.3"
   }
 }

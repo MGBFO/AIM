@@ -1,0 +1,52 @@
+name: Deploy UAT preview to GitHub Pages
+
+# Builds the AIM app (demo mode — no backend, seeded sample data) and publishes
+# it to GitHub Pages for no-login user acceptance testing.
+# Site URL after first deploy: https://mgbfo.github.io/AIM/
+
+on:
+  push:
+    branches:
+      - claude/aim-claude-code-migration-xrkf0l
+      - main
+  workflow_dispatch: # lets you run it manually from the Actions tab
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; don't cancel an in-progress publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build (demo mode, base path /AIM/)
+        run: npm run build
+        env:
+          PAGES_BASE: /AIM/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
