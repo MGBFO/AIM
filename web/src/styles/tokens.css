@@ -159,9 +159,15 @@ th.srt { cursor: pointer; user-select: none; } th.srt:hover { color: var(--blue)
 .ent-chip { background: var(--bluegray-bg); color: var(--bluegray-tx); border-radius: 16px; padding: 3px 9px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
 .ent-chip.flex { background: var(--yellow-bg); color: var(--yellow-tx); }
 .ent-chip button { background: transparent; border: none; color: inherit; font-weight: 700; font-size: 13px; line-height: 1; }
-.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+/* Calendar spans the full content width; every module gets the standard page
+   padding but the calendar drops the 1500px cap so the week is as wide as
+   possible. */
+.cal-module { max-width: none; }
+/* minmax(0,1fr) forces seven equal, fixed tracks: a long task/trip label can no
+   longer set a cell's min-content and stretch its column past the others. */
+.cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
 .cal-dow { background: #f3f5f8; padding: 7px; text-align: center; font-size: 12px; font-weight: 700; color: var(--navy); }
-.cal-cell { background: #fff; min-height: 104px; padding: 5px 6px; font-size: 12px; position: relative; }
+.cal-cell { background: #fff; min-height: 104px; padding: 5px 6px; font-size: 12px; position: relative; min-width: 0; overflow: hidden; }
 .cal-cell.out { background: #fafbfc; color: #bcc6cf; }
 .cal-cell.today { box-shadow: inset 0 0 0 2px var(--gold); }
 .cal-date { font-weight: 700; font-size: 12.5px; margin-bottom: 3px; }

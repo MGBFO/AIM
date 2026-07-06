@@ -19,6 +19,17 @@ function travelBarLabel(t: Trip): string {
   return 'Travel - ' + (analyst || 'Unassigned');
 }
 
+// On calendar chips the task type is already conveyed by the chip color, so we
+// drop a leading "<type> — " prefix (e.g. "Monitoring Call — KIFYX" -> "KIFYX").
+// Only recognized task-type prefixes are stripped, so a Travel task's legitimate
+// "City — Event" title (an em dash between real content) is left intact.
+const TASK_TYPE_PREFIXES = ['Monitoring Call', 'Monitoring Calls', 'Due Diligence', 'Question', 'Recurring', 'Ad Hoc'];
+function calTaskTitle(title: string): string {
+  const i = title.indexOf(' — ');
+  if (i > 0 && TASK_TYPE_PREFIXES.includes(title.slice(0, i).trim())) return title.slice(i + 3).trim();
+  return title;
+}
+
 interface TaskEvent { task: Task; date: string; done: boolean; ovr: boolean; hist?: boolean }
 interface TripSeg { trip: Trip; isStart: boolean; isEnd: boolean; label: string }
 
@@ -75,7 +86,7 @@ export function Calendar() {
   const monthName = cursor.toLocaleString('en-US', { month: 'long', year: 'numeric' });
 
   return (
-    <div className="module">
+    <div className="module cal-module">
       <div className="module-head"><span className="module-title">Workflow Calendar</span>
         <span className="module-meta">Analyst Bandwidth tasks + Travel Schedule trips
           <span className="cal-travel-legend"><i></i> multi-day trip</span></span></div>
@@ -113,7 +124,7 @@ export function Calendar() {
                 {evs.map((e, j) => (
                   <div key={j} className={'cal-task' + (e.ovr ? ' ovr' : '') + (e.done ? ' done' : '')}
                     style={e.ovr ? { background: 'var(--red-bg)', color: 'var(--red)' } : labelStyle(e.task.label)}
-                    onClick={() => setDetail(e.task)} title={e.task.title}>{e.done ? '✓ ' : ''}{e.task.title}</div>
+                    onClick={() => setDetail(e.task)} title={e.task.title}>{e.done ? '✓ ' : ''}{calTaskTitle(e.task.title)}</div>
                 ))}
               </div>
             </div>
