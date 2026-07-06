@@ -14,7 +14,9 @@ export function ToastHost() {
     registerToastSink((t) => {
       const id = uid('t');
       setItems((p) => [...p, { ...t, id }]);
-      setTimeout(() => setItems((p) => p.filter((x) => x.id !== id)), t.undo ? 7000 : 3800);
+      // Errors linger so they're readable (and screenshot-able); others are brief.
+      const ttl = t.type === 'error' ? 15000 : t.undo ? 7000 : 3800;
+      setTimeout(() => setItems((p) => p.filter((x) => x.id !== id)), ttl);
     });
     return () => registerToastSink(null);
   }, []);
