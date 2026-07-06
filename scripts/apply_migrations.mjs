@@ -19,15 +19,33 @@ if (!ref || !token) {
 }
 const endpoint = `https://api.supabase.com/v1/projects/${ref}/database/query`;
 
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
 async function runSql(sql) {
-  const res = await fetch(endpoint, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query: sql }),
-  });
-  const text = await res.text();
-  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`);
-  return text;
+  // Retry transient network / 5xx errors (the Management API occasionally
+  // returns a short-lived 500, e.g. an internal cache OOM).
+  let lastErr;
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: sql }),
+      });
+      const text = await res.text();
+      if (res.status >= 500) throw new Error(`transient HTTP ${res.status}: ${text}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}: ${text}`); // 4xx: real error, don't retry
+      return text;
+    } catch (e) {
+      lastErr = e;
+      const retriable = /transient HTTP 5\d\d/.test(e.message) || e.name === 'TypeError';
+      if (!retriable || attempt === 6) throw e;
+      const wait = attempt * 3000;
+      console.log(`  transient error (attempt ${attempt}/6), retrying in ${wait / 1000}s…`);
+      await sleep(wait);
+    }
+  }
+  throw lastErr;
 }
 
 const here = dirname(fileURLToPath(import.meta.url));

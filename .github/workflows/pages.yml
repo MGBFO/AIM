@@ -7,7 +7,6 @@ name: Deploy UAT preview to GitHub Pages
 on:
   push:
     branches:
-      - claude/aim-claude-code-migration-xrkf0l
       - main
   workflow_dispatch: # lets you run it manually from the Actions tab
 
