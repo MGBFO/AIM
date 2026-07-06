@@ -41,7 +41,7 @@ const TABLE = 'trips';
 
 type ChangePayload = { eventType: string; new: Record<string, unknown>; old: Record<string, unknown> };
 
-async function waitFor(cond: () => boolean, ms = 8000): Promise<void> {
+async function waitFor(cond: () => boolean, ms = 12000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < ms) {
     if (cond()) return;
@@ -56,7 +56,10 @@ function subscribed(client: SupabaseClient, name: string, onRow: (p: ChangePaylo
     .on('postgres_changes', { event: '*', schema: 'public', table: TABLE }, (p) => onRow(p as unknown as ChangePayload));
   return new Promise<ReturnType<typeof client.channel>>((resolve, reject) => {
     chan.subscribe((status) => {
-      if (status === 'SUBSCRIBED') resolve(chan);
+      // On a fresh connection the server-side postgres_changes binding isn't
+      // active the instant SUBSCRIBED fires — wait a beat so the first change
+      // isn't missed (cold start).
+      if (status === 'SUBSCRIBED') setTimeout(() => resolve(chan), 2000);
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') reject(new Error(`subscribe failed: ${status}`));
     });
   });
