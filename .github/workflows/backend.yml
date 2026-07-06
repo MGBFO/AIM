@@ -21,22 +21,17 @@ jobs:
   migrate-seed:
     name: Apply migrations + seed test data
     runs-on: ubuntu-latest
-    env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
-      - uses: supabase/setup-cli@v1
-        with:
-          version: latest
-      - name: Link Supabase project
-        run: supabase link --project-ref "${{ vars.SUPABASE_PROJECT_REF }}"
-      - name: Apply database migrations
-        run: supabase db push
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - name: Apply database migrations (Supabase Management API)
+        run: node scripts/apply_migrations.mjs
+        env:
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       - run: npm ci
       - name: Seed test data
         run: npm run seed:import
