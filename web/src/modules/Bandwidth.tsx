@@ -131,11 +131,11 @@ export function Bandwidth() {
               <div className="tbl-wrap" style={{ margin: 0, border: 'none', borderRadius: 0 }}><table>
                 <thead><tr>
                   {(['title', 'label', 'dueDate', 'sourceModule', '__status'] as const).map((k, i) => (
-                    <th key={k} className="srt" onClick={() => setSort((s) => nextSortDir(s, k))}>
+                    <th key={k} className="srt" style={k === '__status' ? { width: '84px' } : undefined} onClick={() => setSort((s) => nextSortDir(s, k))}>
                       {['Title', 'Label', 'Due Date', 'Source', 'Status'][i]} <span className="car">{sortCaret(sort, k)}</span>
                     </th>
                   ))}
-                  <th style={{ width: '150px' }}>Actions</th>
+                  <th style={{ width: '180px' }}>Actions</th>
                 </tr></thead>
                 <tbody>{tasks.map((t) => { const isOvr = isTaskOverdue(t); const done = t.status === 'completed';
                   return (<tr key={t.id} className={done ? 'completed' : ''}>
@@ -145,8 +145,8 @@ export function Bandwidth() {
                     <td><span className="lbl" style={labelStyle(t.label)}>{t.label}</span></td>
                     <td className={'nowrap' + (isOvr ? ' ovr' : '')} onClick={(e) => e.stopPropagation()}><DateCell value={t.dueDate} onCommit={(v) => { if (!v) { showToast('error', 'Due date is required.'); return; } updateTask(t.id, { dueDate: v }); }} />{isOvr && <span className="pill red" style={{ marginLeft: 6 }}>Overdue</span>}</td>
                     <td className="nowrap">{t.sourceModule}</td>
-                    <td>{done ? <span className="pill green">Completed</span> : isOvr ? <span className="pill red">Overdue</span> : <span className="pill gray">Open</span>}</td>
-                    <td onClick={(e) => e.stopPropagation()}>
+                    <td className="nowrap">{done ? <span className="pill green">Completed</span> : isOvr ? <span className="pill red">Overdue</span> : <span className="pill gray">Open</span>}</td>
+                    <td className="nowrap" onClick={(e) => e.stopPropagation()}>
                       {!done && <button className="btn sm blue" onClick={() => completeTask(t.id)}>Complete</button>}
                       <button className="btn sm ghost" style={{ marginLeft: '5px' }} onClick={() => onDelete(t)}>Delete</button>
                     </td>
