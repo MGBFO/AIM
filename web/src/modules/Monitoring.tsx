@@ -24,7 +24,7 @@ const MON_KEY: Record<string, string> = {
 };
 
 export function Monitoring() {
-  const { state, patch, addTask, undo, redo } = useAim();
+  const { state, patch, addTask } = useAim();
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [editRec, setEditRec] = useState<Partial<Monitoring> | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
@@ -179,8 +179,6 @@ export function Monitoring() {
         <button className="btn" disabled={selRecs().length < 2} onClick={() => setBulk(true)}>Bulk Edit</button>
         <button className="btn" onClick={addToBandwidth}>Add to Analyst Bandwidth</button>
         <button className="btn gold" onClick={() => setRollover(true)}>Rollover</button>
-        <button className="btn ghost" onClick={undo}>Undo</button>
-        <button className="btn ghost" onClick={redo}>Redo</button>
         <div className="spacer"></div>
         <input className="inp-sm" style={{ width: '160px' }} placeholder="Search fund…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <select className="inp-sm" value={fAnalyst} onChange={(e) => setFAnalyst(e.target.value)}><option>All</option>{APPROVED_ANALYSTS.map((a) => <option key={a}>{a}</option>)}</select>
