@@ -103,6 +103,14 @@ export interface TaskRow extends AuditCols {
   created_by: UUID | null;
 }
 
+export interface UsefulLinkRow extends AuditCols {
+  name: string;
+  login: string | null;
+  password: string | null;
+  url: string | null;
+  notes: string | null;
+}
+
 export interface ActionLogRow {
   id: UUID;
   user_id: UUID;
@@ -137,6 +145,7 @@ export interface Database {
       prc_archive: TableDef<PrcArchiveRow>;
       prc_config: TableDef<PrcConfigRow>;
       tasks: TableDef<TaskRow>;
+      useful_links: TableDef<UsefulLinkRow>;
       action_log: TableDef<ActionLogRow>;
       app_config: TableDef<AppConfigRow>;
     };

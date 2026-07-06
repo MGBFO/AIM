@@ -11,12 +11,14 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
     "seed:import": "tsx ../scripts/import_seed.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.4",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.5.0",
@@ -34,6 +36,7 @@
     "tsx": "^4.19.1",
     "typescript": "^5.6.2",
     "vite": "^5.4.8",
+    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^2.1.2"
   }
 }

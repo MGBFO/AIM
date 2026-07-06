@@ -59,3 +59,35 @@ export function aliasMulti(s: string | null | undefined): string | null | undefi
     .map((x) => applyAlias(x.trim()))
     .join('/');
 }
+
+/** Normalize any raw analyst value to a canonical name (unknown -> Unassigned). */
+export function normalizeAnalystName(
+  raw: unknown,
+  map: Record<string, AnalystName> = MON_ANALYST_MAP,
+): AnalystName {
+  if (raw == null) return 'Unassigned';
+  const t = String(raw).trim();
+  if (t === '') return 'Unassigned';
+  if ((APPROVED_ANALYSTS as readonly string[]).includes(t)) return t as AnalystName;
+  if (map[t]) return map[t];
+  return 'Unassigned';
+}
+
+/** Parse a travel analyst string ("MG/JG & Client") into canonical names. */
+export function parseTravelAnalysts(raw: unknown): AnalystName[] {
+  if (raw == null) return ['Unassigned'];
+  const parts = String(raw)
+    .split(/[/&]/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const out: AnalystName[] = [];
+  parts.forEach((p) => {
+    const key = p.replace(/\s+/g, '');
+    let n: AnalystName | null = null;
+    if (TRAVEL_ANALYST_MAP[p]) n = TRAVEL_ANALYST_MAP[p];
+    else if (TRAVEL_ANALYST_MAP[key]) n = TRAVEL_ANALYST_MAP[key];
+    else if (MON_ANALYST_MAP[p]) n = MON_ANALYST_MAP[p];
+    if (n && n !== 'Unassigned' && !out.includes(n)) out.push(n);
+  });
+  return out.length ? out : ['Unassigned'];
+}

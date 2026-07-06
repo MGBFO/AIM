@@ -13,7 +13,53 @@ spec. See [`CLAUDE.md`](./CLAUDE.md) for the operating manual and conventions.
 - [Supabase CLI](https://supabase.com/docs/guides/cli) + Docker (for the local DB stack)
 - Python 3.11+ with `openpyxl` (only to regenerate the seed from the xlsx)
 
-## Getting started (local, offline)
+## Get a shareable app link
+
+### GitHub Pages (no Vercel/Netlify account needed) — browser only
+A workflow (`.github/workflows/pages.yml`) builds the app in demo mode and
+publishes it to **https://mgbfo.github.io/AIM/**. To turn it on, in the browser:
+1. Repo **Settings → Pages → Build and deployment → Source → “GitHub Actions”**.
+2. **Actions** tab → **“Deploy UAT preview to GitHub Pages”** → **Run workflow**
+   → pick branch `claude/aim-claude-code-migration-xrkf0l` → **Run**.
+3. When it finishes (green), open **https://mgbfo.github.io/AIM/**.
+
+The Vite base path is set to `/AIM/` for this build so assets resolve (no blank
+page). Demo mode: seeded sample data, no login; each tester's edits save in their
+own browser. *(GitHub Pages on a private repo requires a plan that supports it;
+if Pages is unavailable, make the repo public or use the hosts below.)*
+
+### Netlify / Vercel (alternative one-click)
+Deploy to a static host. A signed-in team/IT member clicks once — no terminal.
+
+- **Demo mode (fastest, for user acceptance testing):** deploy with **no** env
+  vars. The hosted app runs fully client-side on seeded sample data (data saved
+  in each tester's browser). Good for clicking through every module and add/edit/
+  delete. Multi-user/shared data/realtime are *not* active in this mode.
+- **Full mode (multi-user):** set `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`
+  in the host and connect a Supabase project — see [`docs/DEPLOY.md`](./docs/DEPLOY.md).
+
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/mgbfo/aim)
+&nbsp;
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mgbfo/aim)
+
+Build settings are pre-committed (`netlify.toml`, `vercel.json`): build
+`npm run build`, publish `web/dist`. After it deploys, share the host's URL.
+User-testing steps are in [`docs/UAT.md`](./docs/UAT.md).
+
+## Quick look — demo mode (no backend, ~1 min)
+Just want to click through the app? With **no** Supabase configured it runs in
+local **demo mode**: seeded from the reference data, stored in your browser, no
+login. Needs only Node 22.
+```bash
+npm install
+npm run dev        # open http://127.0.0.1:5173
+```
+A "Demo mode — data is stored locally in your browser" toast confirms it. Edits,
+undo/redo, import/export all work; **Sign out** resets the local demo data.
+Realtime/multi-user needs the real backend below. (Demo activates whenever
+`VITE_SUPABASE_URL` is unset; set that var to use Supabase instead.)
+
+## Getting started (local, offline, full backend)
 ```bash
 npm install                      # installs web workspace + tooling
 cp .env.example web/.env.local   # then fill in from `supabase status`
@@ -31,6 +77,9 @@ npm run dev                      # Vite dev server at http://127.0.0.1:5173
 ```bash
 npm run check   # typecheck + lint + test + build — the bar for every version
 ```
+
+## Deploy
+Managed Supabase + static host (Vercel/Netlify). See [`docs/DEPLOY.md`](./docs/DEPLOY.md).
 
 ## Layout
 | Path | What |

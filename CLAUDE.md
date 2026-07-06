@@ -24,8 +24,9 @@ This is not a redesign; keep the look, feel, and every feature.
 ```
 web/                Vite + React + TS frontend
   src/lib/          supabase client, dates, sort, roster, types
-  src/hooks/        useTrips, useMonitoring, useTasks, useRealtime, useUndo … (later)
-  src/components/   shared UI (Modal, Confirm, Toast, DateCell, SortHeader …) (later)
+  src/hooks/        useAuth … (useTrips, useMonitoring, useTasks, useRealtime, useUndo later)
+  src/components/   AuthProvider, Login, ToastHost, Modal, Confirm, ErrorBoundary,
+                    AnalystPicker, DateCell, SortHeader
   src/modules/      Dashboard, Travel, Monitoring, PRC, Bandwidth, Calendar (later)
   src/styles/tokens.css   design system, ported verbatim from the HTML
 supabase/migrations/  SQL schema + RLS + realtime (source of truth for the DB)
@@ -73,17 +74,33 @@ value (Team, All, RG, blank, …) normalizes to **Unassigned**. See `web/src/lib
   modules. Every version is a git commit; tag milestones.
 
 ## Delivery sequencing
-1. **(done)** Scaffold + CLAUDE.md + local Supabase + schema migration + seed. ← review here
-2. Auth + RLS + app shell (header, nav, tokens, Toast/Modal/Confirm, DateCell, SortHeader).
-3. Read-only port of all six modules against seeded data.
-4. Editing + Realtime + optimistic concurrency, module by module.
-5. Scoped undo/redo (confirm semantics first), bulk actions, import/export.
-6. Deploy config + docs.
+1. **(done)** Scaffold + CLAUDE.md + local Supabase + schema migration + seed.
+2. **(done)** Auth (email/password) + RLS (all users admin) + app shell (header, nav,
+   tokens, ToastHost/Modal/Confirm/ErrorBoundary, AnalystPicker, DateCell, SortHeader). ← review here
+3. **(done)** Port of all six modules against seeded data.
+4. **(done)** Editing + Realtime + optimistic concurrency (see `AimProvider`).
+5. **(done)** Session-scoped undo/redo, bulk actions, import/export.
+6. **(done)** Deploy config (Vercel/Netlify) + docs (`docs/DEPLOY.md`).
 
-## Open items (need a human decision — ask, don't assume)
-- **Hosting/compliance:** managed Supabase vs. self-hosted on-prem?
-- **SSO:** email/password only, or Google Workspace / other?
-- **Undo semantics:** confirm per-user scoped undo (via `action_log`) before building.
-  Replaces the legacy global whole-state snapshot (unsafe with multiple users).
-- **Roster/roles:** exact `admin` vs `analyst` write/delete permissions per table.
-  Current RLS in `0002_rls.sql` is a starting default, not final.
+### Architecture note
+`AimProvider` (`web/src/components/AimProvider.tsx`) loads all tables, subscribes
+to Realtime, and persists mutations via a **diff-sync `patch`** with optimistic
+concurrency (`updated_at` predicate → conflict toast + refetch). Modules keep the
+legacy `api`/`patch` contract via `useAim()`. DB rows are snake_case; the domain
+model is camelCase — mappers live in `web/src/lib/domain.ts`.
+
+## Decisions (confirmed 2026-07-02)
+- **Hosting:** **Managed Supabase** + static frontend host. Keep code host-agnostic
+  (env config only) so a self-hosted switch stays cheap.
+- **Auth:** **Email/password only** for now. Google SSO deferred (stub left commented
+  in `supabase/config.toml`).
+- **Undo:** **Per-user scoped undo** via `action_log` — Ctrl+Z inverts only the
+  current user's most recent action, and refuses if that row was since changed by
+  someone else. Keep the legacy keybindings (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z) and
+  ↶/↷ header buttons; native text-field undo still works while an input is focused.
+- **Roles:** **all authenticated users are admins** — full read/write/delete on every
+  table (`0004_all_admins.sql` makes `is_admin()` true for any signed-in user). The
+  `role` column is retained if per-role restrictions are reintroduced later.
+
+## Open items (still need a human decision — ask, don't assume)
+- None outstanding. (Hosting, auth, undo, and roles are all decided above.)

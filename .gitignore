@@ -31,3 +31,6 @@ scripts/seed.json
 
 # tsc incremental build info
 *.tsbuildinfo
+
+# single-file UI preview build
+web/dist-single/

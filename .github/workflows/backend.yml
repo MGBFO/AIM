@@ -1,0 +1,84 @@
+name: Stage 2 — Supabase backend, seed, tests, go live
+
+# One-click Technical Acceptance: applies DB migrations to your Supabase project,
+# seeds test data, runs the realtime + optimistic-concurrency tests, and (only if
+# they pass) redeploys the Pages site in REAL backend mode (login + shared data).
+# Requires the repo Variables + Secrets listed in docs/DEPLOY.md "Stage 2".
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  migrate-seed:
+    name: Apply migrations + seed test data
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply database migrations (Supabase Management API)
+        run: node scripts/apply_migrations.mjs
+        env:
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      - run: npm ci
+      - name: Seed test data
+        run: npm run seed:import
+        env:
+          SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  technical-tests:
+    name: Technical acceptance tests (realtime + concurrency)
+    needs: migrate-seed
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run integration tests against the live project
+        run: npm run test:integration
+        env:
+          SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+  deploy-full:
+    name: Redeploy app in real backend mode
+    needs: technical-tests
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build (real backend mode, base path /AIM/)
+        run: npm run build
+        env:
+          PAGES_BASE: /AIM/
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY }}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
