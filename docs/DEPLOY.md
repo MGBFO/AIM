@@ -97,7 +97,71 @@ publication (they are via `0003_realtime.sql` / `0005_useful_links.sql`) and tha
 
 ---
 
-## 1. Supabase project (backend)
+## Stage 2 — browser-only backend setup (no terminal)
+
+Once you create a Supabase project and paste six values into GitHub, one workflow
+button applies the database, seeds test data, runs the technical tests, and
+redeploys the app in real-backend mode. No local commands.
+
+### Step 1 — create the project + copy six values (Supabase dashboard)
+Create a project at **supabase.com** (pick a strong **database password** and
+save it). Then collect:
+
+| # | Value | Where in Supabase | Sensitive? |
+|---|-------|-------------------|------------|
+| 1 | **Reference ID** (project ref) | Project Settings → General → "Reference ID" | Public |
+| 2 | **Project URL** (`https://<ref>.supabase.co`) | Project Settings → API → "Project URL" | Public |
+| 3 | **anon public** key | Project Settings → API → Project API keys → `anon` `public` | Public (safe to ship in the browser) |
+| 4 | **service_role** key | Project Settings → API → Project API keys → `service_role` | **SENSITIVE** |
+| 5 | **database password** | the one you set at creation (or Settings → Database → Reset password) | **SENSITIVE** |
+| 6 | **access token** | supabase.com/dashboard/account/tokens → Generate new token | **SENSITIVE** |
+
+### Step 2 — paste them into GitHub (repo → Settings → Secrets and variables → Actions)
+Two tabs on that page. **Names must match exactly.**
+
+**"Variables" tab → New repository variable** (public config):
+- `SUPABASE_PROJECT_REF` = value 1
+- `VITE_SUPABASE_URL` = value 2
+- `VITE_SUPABASE_ANON_KEY` = value 3
+
+**"Secrets" tab → New repository secret** (sensitive — masked, never shown again):
+- `SUPABASE_SERVICE_ROLE_KEY` = value 4
+- `SUPABASE_DB_PASSWORD` = value 5
+- `SUPABASE_ACCESS_TOKEN` = value 6
+
+> Why the split: 1–3 are public by design (the URL and anon key already ship in
+> the browser app and are safe behind row-level security). 4–6 can administer or
+> bypass the database, so they go in Secrets and are never exposed.
+
+### Step 3 — run it (one button)
+Repo → **Actions** tab → left sidebar **"Stage 2 — Supabase backend, seed, tests,
+go live"** → **Run workflow** → branch `claude/aim-claude-code-migration-xrkf0l`
+→ **Run workflow**.
+
+It runs three stages in order: apply migrations → seed test data → technical
+tests → (only if tests pass) redeploy the app in real-backend mode.
+
+### Step 4 — read the result
+- **Green check** on the run = **Stage 2 passed**: database live, data seeded,
+  realtime + concurrency verified, and **https://mgbfo.github.io/AIM/** now opens
+  a **login screen** (real multi-user app).
+- **Red ✗** = failed. Click the run; the failed job's name says which stage:
+  `migrate-seed` (DB/secrets), `technical-tests` (backend behavior), or
+  `deploy-full` (publish). Send the run link and I'll fix it.
+
+### After go-live (real backend mode)
+- The site now requires an account. Sign up with email/password. Supabase may
+  require email confirmation — click the emailed link, or disable
+  **Authentication → Providers → Email → "Confirm email"** in Supabase for easy
+  testing.
+- The seeded rows are **test data**. Before production, restrict sign-ups (or add
+  SSO) and re-seed/clear as needed — every authenticated user is currently an admin.
+- Re-running the workflow is safe (migrations skip already-applied; seed wipes +
+  reloads the test data).
+
+---
+
+## 1. Supabase project (backend) — CLI reference (optional)
 
 1. Create a project at supabase.com. Note the **Project URL**, **anon key**, and
    **service-role key** (Project Settings → API).
