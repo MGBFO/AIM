@@ -132,10 +132,23 @@ export function AimProvider({ children }: { children: ReactNode }) {
   const syncTable = useCallback(async (cfg: TableCfg, prev: unknown[], next: unknown[]) => {
     const d = diffById(prev as { id: string }[], next as { id: string }[]);
     const m = known.current[cfg.table] ?? (known.current[cfg.table] = new Map());
-    for (const r of d.inserts) {
-      const { data, error } = await dyn.from(cfg.table).insert(cfg.toRow(r)).select().single();
-      if (error) { console.error('insert', cfg.table, error); showToast('error', 'Could not save a new record.'); await refetchTable(cfg); continue; }
-      if (data?.updated_at) m.set((data as { id: string }).id, data.updated_at as string);
+    if (d.inserts.length) {
+      // One round-trip for the whole batch (an import can be hundreds of rows).
+      const rows = d.inserts.map((r) => cfg.toRow(r));
+      const { data, error } = await dyn.from(cfg.table).insert(rows).select();
+      if (error) {
+        // Surface the real Postgres/PostgREST reason instead of a generic message —
+        // one legible toast for the batch, not one per row.
+        console.error('insert', cfg.table, error, { attempted: rows.length });
+        const detail = error.message || error.details || error.hint || error.code || 'unknown error';
+        const what = rows.length > 1 ? `${rows.length} new records` : 'a new record';
+        showToast('error', `Could not save ${what}: ${detail}`);
+        await refetchTable(cfg);
+      } else {
+        for (const row of (data ?? []) as { id: string; updated_at?: string }[]) {
+          if (row.updated_at) m.set(row.id, row.updated_at);
+        }
+      }
     }
     for (const r of d.updates) {
       const prevUpdated = m.get((r as { id: string }).id);
