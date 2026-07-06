@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import { useAim } from '../hooks/useAim';
 import { toISO } from '../lib/dates';
 import { applyColSort, nextSortDir, sortCaret, type SortState } from '../lib/sort';
@@ -25,13 +25,15 @@ export function Travel() {
   const [editTrip, setEditTrip] = useState<Partial<Trip> | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [archOpen, setArchOpen] = useState(false);
+  // Upcoming + Potential share one sort; Archived sorts independently.
   const [sort, setSort] = useState<SortState>({ key: null, dir: null });
+  const [archSort, setArchSort] = useState<SortState>({ key: null, dir: null });
 
   const trips = state.trips;
-  const sortSec = (list: Trip[]) => applyColSort(list, sort, (t, k) => t[k as keyof Trip]);
-  const upcoming = sortSec(trips.filter((t) => t.section === 'upcoming'));
-  const potential = sortSec(trips.filter((t) => t.section === 'potential'));
-  const archived = sortSec(trips.filter((t) => t.section === 'archived'));
+  const sortWith = (list: Trip[], s: SortState) => applyColSort(list, s, (t, k) => t[k as keyof Trip]);
+  const upcoming = sortWith(trips.filter((t) => t.section === 'upcoming'), sort);
+  const potential = sortWith(trips.filter((t) => t.section === 'potential'), sort);
+  const archived = sortWith(trips.filter((t) => t.section === 'archived'), archSort);
   const editTripField = (id: string, k: keyof Trip, v: unknown) => patch((s) => { s.trips = s.trips.map((t) => (t.id === id ? { ...t, [k]: v } : t)); });
 
   const toggle = (id: string) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
@@ -82,7 +84,7 @@ export function Travel() {
     showToast('success', 'Trip saved.');
   };
 
-  const Head = () => (
+  const Head = ({ sort, setSort }: { sort: SortState; setSort: Dispatch<SetStateAction<SortState>> }) => (
     <thead><tr><th></th>{COLS.map((c) => { const k = TRV_KEY[c] as string; return <th key={c} className="srt" onClick={() => setSort((s) => nextSortDir(s, k))}>{c} <span className="car">{sortCaret(sort, k)}</span></th>; })}</tr></thead>
   );
   const Row = ({ t }: { t: Trip }) => (
@@ -114,7 +116,7 @@ export function Travel() {
         <button className="btn blue" onClick={() => { const s = selIn(upcoming); if (!s.length) { showToast('warning', 'Select upcoming trips to archive.'); return; } moveSection(s.map((x) => x.id), 'archived'); showToast('success', 'Archived selected trips.'); }}>Archive</button>
         <button className="btn ghost" onClick={() => { const s = selIn(upcoming); if (!s.length) { showToast('warning', 'Select trips first.'); return; } moveSection(s.map((x) => x.id), 'potential'); showToast('success', 'Moved to Potential.'); }}>Potential</button>
       </div>
-      <div className="tbl-wrap"><table><Head /><tbody>{upcoming.length ? upcoming.map((t) => <Row key={t.id} t={t} />) : emptyRow('No upcoming trips.')}</tbody></table></div>
+      <div className="tbl-wrap"><table><Head sort={sort} setSort={setSort} /><tbody>{upcoming.length ? upcoming.map((t) => <Row key={t.id} t={t} />) : emptyRow('No upcoming trips.')}</tbody></table></div>
 
       <div className="section-bar"><h3>Potential Trips</h3></div>
       <div className="ribbon">
@@ -123,7 +125,7 @@ export function Travel() {
         <button className="btn blue" onClick={() => { const s = selIn(potential); if (!s.length) { showToast('warning', 'Select potential trips first.'); return; } moveSection(s.map((x) => x.id), 'upcoming'); showToast('success', 'Moved to Upcoming.'); }}>Upcoming</button>
         <button className="btn" onClick={refreshAnnual}>Refresh Annual Trips</button>
       </div>
-      <div className="tbl-wrap"><table><Head /><tbody>{potential.length ? potential.map((t) => <Row key={t.id} t={t} />) : emptyRow('No potential trips.')}</tbody></table></div>
+      <div className="tbl-wrap"><table><Head sort={sort} setSort={setSort} /><tbody>{potential.length ? potential.map((t) => <Row key={t.id} t={t} />) : emptyRow('No potential trips.')}</tbody></table></div>
 
       <div className="section-bar" onClick={() => setArchOpen((o) => !o)}>
         <span className="chev">{archOpen ? '▼' : '▶'}</span><h3>Archived Trips ({archived.length})</h3>
@@ -133,7 +135,7 @@ export function Travel() {
           <div className="ribbon">
             <button className="btn blue" onClick={() => { const s = selIn(archived); if (!s.length) { showToast('warning', 'Select archived trips first.'); return; } moveSection(s.map((x) => x.id), 'upcoming'); showToast('success', 'Restored to Upcoming.'); }}>Upcoming</button>
           </div>
-          <div className="tbl-wrap"><table><Head /><tbody>{archived.length ? archived.map((t) => <Row key={t.id} t={t} />) : emptyRow('No archived trips.')}</tbody></table></div>
+          <div className="tbl-wrap"><table><Head sort={archSort} setSort={setArchSort} /><tbody>{archived.length ? archived.map((t) => <Row key={t.id} t={t} />) : emptyRow('No archived trips.')}</tbody></table></div>
         </>
       )}
 
