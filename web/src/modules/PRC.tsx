@@ -23,7 +23,7 @@ function MacroCell({ value, onCommit }: { value: string; onCommit: (v: string) =
   useEffect(() => { setV(value ?? ''); }, [value]);
   return (
     <td onClick={(e) => e.stopPropagation()}>
-      <input className="inp-sm" style={{ width: '100%', minWidth: '90px' }} value={v} placeholder="-"
+      <input className="inp-sm" style={{ width: '100%', minWidth: '90px', border: 'none', outline: 'none', background: 'transparent', padding: '2px 0', font: 'inherit', color: 'inherit' }} value={v} placeholder="-"
         onChange={(e) => setV(e.target.value)}
         onBlur={() => { if (v !== (value ?? '')) onCommit(v); }}
         onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
