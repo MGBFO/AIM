@@ -163,8 +163,8 @@ function EntityField({ label, col, globalList, archive, selected, onChange, allo
   const isFlex = (name: string) => globalList.find((e) => e.name === name && e.flex);
   const toggle = (n: string) => onChange(selected.includes(n) ? selected.filter((x) => x !== n) : [...selected, n]);
   return (
-    <div className="field"><label>{label}</label>
-      <div style={{ border: '1px solid #cbd4dd', borderRadius: '7px', maxHeight: '130px', overflow: 'auto', padding: '5px' }}>
+    <div className="field" style={{ height: '100%' }}><label>{label}</label>
+      <div style={{ border: '1px solid #cbd4dd', borderRadius: '7px', flex: 1, minHeight: '130px', overflow: 'auto', padding: '5px' }}>
         {opts.map((o) => (<label key={o.n} style={{ display: 'flex', alignItems: 'center', gap: '7px', padding: '3px 4px', fontSize: '13px' }}>
           <input type="checkbox" className="chk" checked={selected.includes(o.n)} onChange={() => toggle(o.n)} />
           <span>{optLabel(o)}{isFlex(o.n) ? <span className="pill gray" style={{ marginLeft: 6, fontSize: 11 }}>Flex</span> : null}</span></label>))}
@@ -209,7 +209,7 @@ type EditorState = ReturnType<typeof useMeetingEditorState>;
 function MeetingEditorBody({ st, extra }: { st: EditorState; extra?: React.ReactNode }) {
   const { mapping, archive, pres, newPres, setNewPres, macro, setMacro, nf, setNf, a40, setA40, hf, setHF, pv, setPv, presOpts, applyPresentation, addGlobal } = st;
   return (
-    <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start' }}>
+    <div style={{ display: 'flex', gap: '18px', alignItems: 'stretch' }}>
       <div style={{ flex: '0 0 300px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
         {extra}
         <div className="field"><label>Presentation</label>
@@ -224,7 +224,7 @@ function MeetingEditorBody({ st, extra }: { st: EditorState; extra?: React.React
         <div className="field"><label>Macro</label><textarea value={macro} onChange={(e) => setMacro(e.target.value)} /></div>
         <div className="field"><label>New Funds / Projects</label><textarea value={nf} onChange={(e) => setNf(e.target.value)} /></div>
       </div>
-      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '12px' }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gridAutoRows: '1fr', gap: '12px' }}>
         <EntityField label="40-Act" col="act40" globalList={mapping.act40Global} archive={archive} selected={a40} onChange={setA40} allowNew onNew={(n) => addGlobal('act40Global', n)} />
         <EntityField label="Hedge Fund" col="hedgeFund" globalList={mapping.hedgeFundGlobal} archive={archive} selected={hf} onChange={setHF} allowNew onNew={(n) => addGlobal('hedgeFundGlobal', n)} />
         <EntityField label="Private" col="private" globalList={mapping.privateGlobal} archive={archive} selected={pv} onChange={setPv} allowNew onNew={(n) => addGlobal('privateGlobal', n)} />
