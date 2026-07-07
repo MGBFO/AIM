@@ -115,6 +115,7 @@ td.ovr, .ovr { color: var(--red); font-weight: 600; }
 .overlay { position: fixed; inset: 0; background: rgba(20,30,40,.5); display: flex; align-items: flex-start; justify-content: center; z-index: 80; padding: 40px 16px; overflow: auto; }
 .modal { background: #fff; border-radius: 14px; width: 100%; max-width: 560px; box-shadow: 0 20px 60px rgba(0,0,0,.3); overflow: hidden; animation: pop .14s ease; }
 .modal.wide { max-width: 880px; }
+.modal.xwide { max-width: 1040px; }
 @keyframes pop { from { transform: translateY(8px); opacity: .6; } to { transform: none; opacity: 1; } }
 .modal-head { background: var(--navy); color: #fff; padding: 14px 20px; font-family: 'Fraunces', serif; font-size: 18px; display: flex; align-items: center; justify-content: space-between; }
 .modal-head .x { background: transparent; border: none; color: #cdd6df; font-size: 20px; line-height: 1; }

@@ -36,6 +36,7 @@ export function PRC() {
   const [sel, setSel] = useState<string | null>(null);
   const [selArch, setSelArch] = useState<string | null>(null);
   const [edit, setEdit] = useState<PrcSchedule | null>(null);
+  const [editArch, setEditArch] = useState<PrcArchive | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [showMap, setShowMap] = useState(false);
   const [showFund, setShowFund] = useState(false);
@@ -125,6 +126,7 @@ export function PRC() {
         <button className="btn gold" onClick={() => { snap(); patch((s) => { s.prcArchive = [{ id: uid('ar'), meetingDate: toISO(todayLocal()), macro: '', presentation: '', act40: '', hedgeFund: '', private: '', newFunds: '', sharepointUrl: '' }, ...s.prcArchive]; }); showToast('success', 'New archive record added.'); }}>New Archive Record</button>
         <button className="btn ghost" onClick={() => setArSort({ key: 'meetingDate', dir: 'desc' })}>Sort Newest First</button>
         <button className="btn ghost" onClick={() => setArSort({ key: 'meetingDate', dir: 'asc' })}>Sort Oldest First</button>
+        <button className={'btn' + (!selArch ? ' faded' : '')} onClick={() => { if (!selArch) { showToast('error', 'Select an archive record to edit.'); return; } const r = archive.find((x) => x.id === selArch); if (r) setEditArch(r); }}>Edit</button>
         <button className={'btn ghost' + (!selArch ? ' faded' : '')} onClick={() => { if (selArch) doDeleteArch(); }}>Delete</button>
       </div>
       <div className="tbl-wrap"><table>
@@ -144,6 +146,7 @@ export function PRC() {
       </table></div>
 
       {edit && <PRCEdit row={edit} onClose={() => setEdit(null)} />}
+      {editArch && <ArchiveEdit row={editArch} onClose={() => setEditArch(null)} />}
       {confirm && <Confirm {...confirm} onCancel={() => setConfirm(null)} />}
       {showMap && <MappingPopup onClose={() => setShowMap(false)} />}
       {showFund && <FundListPopup onClose={() => setShowFund(false)} />}
@@ -175,18 +178,21 @@ function EntityField({ label, col, globalList, archive, selected, onChange, allo
   );
 }
 
-function PRCEdit({ row, onClose }: { row: PrcSchedule; onClose: () => void }) {
+// Shared editor state used by both the Meeting Schedule (PRCEdit) and Meeting
+// Archive (ArchiveEdit) editors. Layout: a single left column (presentation
+// picklist, new-presentation input, macro, new funds) beside the three entity
+// picklists (40-Act / Hedge Fund / Private) laid out horizontally across.
+function useMeetingEditorState(row: { presentation: string; macro?: string; act40?: string; hedgeFund?: string; private?: string; newFunds?: string }) {
   const { state, patch } = useAim();
   const archive = state.prcArchive;
   const mapping = state.prcMapping;
-  const [pres, setPres] = useState(row.presentation);
+  const [pres, setPres] = useState(row.presentation || '');
   const [newPres, setNewPres] = useState('');
   const [macro, setMacro] = useState(row.macro || '');
   const [a40, setA40] = useState(splitEnts(row.act40));
   const [hf, setHF] = useState(splitEnts(row.hedgeFund));
   const [pv, setPv] = useState(splitEnts(row.private));
   const [nf, setNf] = useState(row.newFunds || '');
-
   const presOpts = sortOptsByRecent(mapping.presentations.filter((p) => p !== 'Flex'), 'presentation', archive);
   const applyPresentation = (p: string) => {
     setPres(p);
@@ -195,32 +201,71 @@ function PRCEdit({ row, onClose }: { row: PrcSchedule; onClose: () => void }) {
     setA40(m40); setHF(mhf); setPv(mpv);
   };
   const addGlobal = (key: 'act40Global' | 'hedgeFundGlobal' | 'privateGlobal', name: string) => patch((s) => { const arr = s.prcMapping[key]; if (!arr.find((e) => e.name === name)) s.prcMapping[key] = [...arr, { name, flex: false }]; });
+  return { patch, archive, mapping, pres, setPres, newPres, setNewPres, macro, setMacro, a40, setA40, hf, setHF, pv, setPv, nf, setNf, presOpts, applyPresentation, addGlobal };
+}
 
+type EditorState = ReturnType<typeof useMeetingEditorState>;
+
+function MeetingEditorBody({ st, extra }: { st: EditorState; extra?: React.ReactNode }) {
+  const { mapping, archive, pres, newPres, setNewPres, macro, setMacro, nf, setNf, a40, setA40, hf, setHF, pv, setPv, presOpts, applyPresentation, addGlobal } = st;
+  return (
+    <div style={{ display: 'flex', gap: '18px', alignItems: 'flex-start' }}>
+      <div style={{ flex: '0 0 300px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
+        {extra}
+        <div className="field"><label>Presentation</label>
+          <select value={pres} onChange={(e) => applyPresentation(e.target.value)}>
+            {pres && !presOpts.find((o) => o.n === pres) && <option value={pres}>{pres}</option>}
+            {presOpts.map((o) => <option key={o.n} value={o.n}>{optLabel(o)}</option>)}
+          </select>
+          <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+            <input type="text" className="inp-sm" placeholder="Or type a new Presentation…" value={newPres} onChange={(e) => setNewPres(e.target.value)} />
+          </div>
+        </div>
+        <div className="field"><label>Macro</label><textarea value={macro} onChange={(e) => setMacro(e.target.value)} /></div>
+        <div className="field"><label>New Funds / Projects</label><textarea value={nf} onChange={(e) => setNf(e.target.value)} /></div>
+      </div>
+      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '12px' }}>
+        <EntityField label="40-Act" col="act40" globalList={mapping.act40Global} archive={archive} selected={a40} onChange={setA40} allowNew onNew={(n) => addGlobal('act40Global', n)} />
+        <EntityField label="Hedge Fund" col="hedgeFund" globalList={mapping.hedgeFundGlobal} archive={archive} selected={hf} onChange={setHF} allowNew onNew={(n) => addGlobal('hedgeFundGlobal', n)} />
+        <EntityField label="Private" col="private" globalList={mapping.privateGlobal} archive={archive} selected={pv} onChange={setPv} allowNew onNew={(n) => addGlobal('privateGlobal', n)} />
+      </div>
+    </div>
+  );
+}
+
+function PRCEdit({ row, onClose }: { row: PrcSchedule; onClose: () => void }) {
+  const st = useMeetingEditorState(row);
   const save = () => {
-    let finalPres = pres;
-    patch((s) => {
-      if (newPres.trim()) { finalPres = applyAlias(newPres.trim())!; if (!s.prcMapping.presentations.includes(finalPres)) s.prcMapping.presentations = [...s.prcMapping.presentations, finalPres]; }
-      s.prcSchedule = s.prcSchedule.map((r) => (r.id === row.id ? { ...r, presentation: finalPres, macro, act40: joinEnts(a40), hedgeFund: joinEnts(hf), private: joinEnts(pv), newFunds: nf } : r));
+    let finalPres = st.pres;
+    st.patch((s) => {
+      if (st.newPres.trim()) { finalPres = applyAlias(st.newPres.trim())!; if (!s.prcMapping.presentations.includes(finalPres)) s.prcMapping.presentations = [...s.prcMapping.presentations, finalPres]; }
+      s.prcSchedule = s.prcSchedule.map((r) => (r.id === row.id ? { ...r, presentation: finalPres, macro: st.macro, act40: joinEnts(st.a40), hedgeFund: joinEnts(st.hf), private: joinEnts(st.pv), newFunds: st.nf } : r));
     });
     onClose(); showToast('success', 'Meeting line updated.');
   };
   return (
-    <Modal title="Edit Meeting Line" wide onClose={onClose}
+    <Modal title="Edit Meeting Line" xwide onClose={onClose}
       foot={<><button className="btn ghost" onClick={onClose}>Cancel</button><button className="btn gold" onClick={save}>Save</button></>}>
-      <div className="field"><label>Presentation</label>
-        <select value={pres} onChange={(e) => applyPresentation(e.target.value)}>
-          {!presOpts.find((o) => o.n === pres) && <option value={pres}>{pres}</option>}
-          {presOpts.map((o) => <option key={o.n} value={o.n}>{optLabel(o)}</option>)}
-        </select>
-        <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
-          <input type="text" className="inp-sm" placeholder="Or type a new Presentation…" value={newPres} onChange={(e) => setNewPres(e.target.value)} />
-        </div>
-      </div>
-      <div className="field"><label>Macro</label><textarea value={macro} onChange={(e) => setMacro(e.target.value)} /></div>
-      <EntityField label="40-Act" col="act40" globalList={mapping.act40Global} archive={archive} selected={a40} onChange={setA40} allowNew onNew={(n) => addGlobal('act40Global', n)} />
-      <EntityField label="Hedge Fund" col="hedgeFund" globalList={mapping.hedgeFundGlobal} archive={archive} selected={hf} onChange={setHF} allowNew onNew={(n) => addGlobal('hedgeFundGlobal', n)} />
-      <EntityField label="Private" col="private" globalList={mapping.privateGlobal} archive={archive} selected={pv} onChange={setPv} allowNew onNew={(n) => addGlobal('privateGlobal', n)} />
-      <div className="field"><label>New Funds / Projects</label><textarea value={nf} onChange={(e) => setNf(e.target.value)} /></div>
+      <MeetingEditorBody st={st} />
+    </Modal>
+  );
+}
+
+function ArchiveEdit({ row, onClose }: { row: PrcArchive; onClose: () => void }) {
+  const st = useMeetingEditorState(row);
+  const [meetingDate, setMeetingDate] = useState<string | null>(row.meetingDate);
+  const save = () => {
+    let finalPres = st.pres;
+    st.patch((s) => {
+      if (st.newPres.trim()) { finalPres = applyAlias(st.newPres.trim())!; if (!s.prcMapping.presentations.includes(finalPres)) s.prcMapping.presentations = [...s.prcMapping.presentations, finalPres]; }
+      s.prcArchive = s.prcArchive.map((r) => (r.id === row.id ? { ...r, meetingDate, presentation: finalPres, macro: st.macro, act40: joinEnts(st.a40), hedgeFund: joinEnts(st.hf), private: joinEnts(st.pv), newFunds: st.nf } : r));
+    });
+    onClose(); showToast('success', 'Archive record updated.');
+  };
+  return (
+    <Modal title="Edit Meeting Archive Record" xwide onClose={onClose}
+      foot={<><button className="btn ghost" onClick={onClose}>Cancel</button><button className="btn gold" onClick={save}>Save</button></>}>
+      <MeetingEditorBody st={st} extra={<div className="field"><label>Meeting Date</label><input type="date" value={toISO(meetingDate) || ''} onChange={(e) => setMeetingDate(e.target.value || null)} /></div>} />
     </Modal>
   );
 }
