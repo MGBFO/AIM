@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAim } from '../hooks/useAim';
 import { toISO, todayLocal, parseLocalDate, addDaysISO, formatDateMMDDYYYY } from '../lib/dates';
 import { applyColSort, nextSortDir, sortCaret, type SortState } from '../lib/sort';
@@ -16,6 +16,20 @@ import type { PrcSchedule, PrcArchive, EntityGlobal } from '../lib/domain';
 
 type ConfirmState = { title: string; message: string; confirmLabel: string; onConfirm: () => void } | null;
 type EntityCol = 'act40' | 'hedgeFund' | 'private';
+
+/** Inline edit-in-place text cell — commits on blur/Enter, not per keystroke. */
+function MacroCell({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+  const [v, setV] = useState(value ?? '');
+  useEffect(() => { setV(value ?? ''); }, [value]);
+  return (
+    <td onClick={(e) => e.stopPropagation()}>
+      <input className="inp-sm" style={{ width: '100%', minWidth: '90px' }} value={v} placeholder="-"
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => { if (v !== (value ?? '')) onCommit(v); }}
+        onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }} />
+    </td>
+  );
+}
 
 export function PRC() {
   const { state, patch } = useAim();
@@ -38,6 +52,8 @@ export function PRC() {
   const restore = () => { const s = lastSnap.current; if (!s) return; patch((st) => { st.prcSchedule = s.prcSchedule; st.prcArchive = s.prcArchive; }); lastSnap.current = null; };
 
   const editProjected = (id: string, iso: string) => patch((s) => { s.prcSchedule = s.prcSchedule.map((r) => (r.id === id ? { ...r, projectedNext: iso || null } : r)); });
+  const editSchedMacro = (id: string, v: string) => patch((s) => { s.prcSchedule = s.prcSchedule.map((r) => (r.id === id ? { ...r, macro: v } : r)); });
+  const editArchMacro = (id: string, v: string) => patch((s) => { s.prcArchive = s.prcArchive.map((r) => (r.id === id ? { ...r, macro: v } : r)); });
 
   const doArchive = () => {
     if (!sel) { showToast('error', 'Please select a meeting to archive'); return; }
@@ -73,7 +89,7 @@ export function PRC() {
   const Cell = ({ v }: { v: string }) => (<td className="clip" title={v}>{v || '-'}</td>);
 
   return (
-    <div className="module">
+    <div className="module prc-module">
       <div className="module-head"><span className="module-title">Portfolio Research Committee</span></div>
       <div className="cards">
         <div className="card accent-gold"><div className="label">Next Projected Meeting</div><div className="value sm">{top && top.projectedNext ? formatDateMMDDYYYY(top.projectedNext) : '-'}</div></div>
@@ -98,7 +114,7 @@ export function PRC() {
             <td><input type="radio" name="msrow" checked={sel === r.id} onChange={() => setSel(r.id)} /></td>
             <td className="nowrap">{formatDateMMDDYYYY(r.mostRecent)}</td>
             <td className="nowrap" onClick={(e) => e.stopPropagation()}><input type="date" className="inp-sm" value={toISO(r.projectedNext) || ''} onChange={(e) => editProjected(r.id, e.target.value)} /></td>
-            <Cell v={r.macro} />
+            <MacroCell value={r.macro} onCommit={(v) => editSchedMacro(r.id, v)} />
             <td style={{ fontWeight: 600, cursor: 'pointer' }} onClick={() => setEdit(r)} className="clip" title={r.presentation}>{r.presentation}</td>
             <Cell v={r.act40} /><Cell v={r.hedgeFund} /><Cell v={r.private} /><Cell v={r.newFunds} />
           </tr>))}</tbody>
@@ -117,7 +133,7 @@ export function PRC() {
           return (<tr key={r.id} className={selArch === r.id ? 'sel' : ''} onClick={() => setSelArch(r.id)}>
             <td><input type="radio" name="arrow" checked={selArch === r.id} onChange={() => setSelArch(r.id)} /></td>
             <td className="nowrap" onClick={(e) => e.stopPropagation()}><DateCell value={r.meetingDate} onCommit={(v) => patch((s) => { s.prcArchive = s.prcArchive.map((x) => (x.id === r.id ? { ...x, meetingDate: v } : x)); })} /></td>
-            <Cell v={r.macro} />
+            <MacroCell value={r.macro} onCommit={(v) => editArchMacro(r.id, v)} />
             <td className="clip" title={r.presentation} style={{ fontWeight: 600 }}>{r.presentation || '-'}</td>
             <Cell v={r.act40} /><Cell v={r.hedgeFund} /><Cell v={r.private} /><Cell v={r.newFunds} />
             <td onClick={(e) => e.stopPropagation()}>{url
@@ -165,6 +181,7 @@ function PRCEdit({ row, onClose }: { row: PrcSchedule; onClose: () => void }) {
   const mapping = state.prcMapping;
   const [pres, setPres] = useState(row.presentation);
   const [newPres, setNewPres] = useState('');
+  const [macro, setMacro] = useState(row.macro || '');
   const [a40, setA40] = useState(splitEnts(row.act40));
   const [hf, setHF] = useState(splitEnts(row.hedgeFund));
   const [pv, setPv] = useState(splitEnts(row.private));
@@ -183,7 +200,7 @@ function PRCEdit({ row, onClose }: { row: PrcSchedule; onClose: () => void }) {
     let finalPres = pres;
     patch((s) => {
       if (newPres.trim()) { finalPres = applyAlias(newPres.trim())!; if (!s.prcMapping.presentations.includes(finalPres)) s.prcMapping.presentations = [...s.prcMapping.presentations, finalPres]; }
-      s.prcSchedule = s.prcSchedule.map((r) => (r.id === row.id ? { ...r, presentation: finalPres, act40: joinEnts(a40), hedgeFund: joinEnts(hf), private: joinEnts(pv), newFunds: nf } : r));
+      s.prcSchedule = s.prcSchedule.map((r) => (r.id === row.id ? { ...r, presentation: finalPres, macro, act40: joinEnts(a40), hedgeFund: joinEnts(hf), private: joinEnts(pv), newFunds: nf } : r));
     });
     onClose(); showToast('success', 'Meeting line updated.');
   };
@@ -199,6 +216,7 @@ function PRCEdit({ row, onClose }: { row: PrcSchedule; onClose: () => void }) {
           <input type="text" className="inp-sm" placeholder="Or type a new Presentation…" value={newPres} onChange={(e) => setNewPres(e.target.value)} />
         </div>
       </div>
+      <div className="field"><label>Macro</label><textarea value={macro} onChange={(e) => setMacro(e.target.value)} /></div>
       <EntityField label="40-Act" col="act40" globalList={mapping.act40Global} archive={archive} selected={a40} onChange={setA40} allowNew onNew={(n) => addGlobal('act40Global', n)} />
       <EntityField label="Hedge Fund" col="hedgeFund" globalList={mapping.hedgeFundGlobal} archive={archive} selected={hf} onChange={setHF} allowNew onNew={(n) => addGlobal('hedgeFundGlobal', n)} />
       <EntityField label="Private" col="private" globalList={mapping.privateGlobal} archive={archive} selected={pv} onChange={setPv} allowNew onNew={(n) => addGlobal('privateGlobal', n)} />

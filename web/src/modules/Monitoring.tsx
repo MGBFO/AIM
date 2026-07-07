@@ -6,7 +6,7 @@ import { APPROVED_ANALYSTS } from '../lib/roster';
 import { uid } from '../lib/util';
 import { showToast } from '../lib/toast';
 import {
-  levelDays, monStatus, isMonOverdue, rolloverLabel, exportMonitoring,
+  levelDays, monStatus, isMonOverdue, rolloverLabel, exportMonitoring, exportMonitoringXlsx,
   readMonitoringWorkbook, parseMonitoringSheet, parseCsv, type ImportDiag,
 } from '../lib/monitoring';
 import { DateCell } from '../components/DateCell';
@@ -212,7 +212,8 @@ export function Monitoring() {
       <div className="ribbon">
         <label className="btn ghost" style={{ cursor: 'pointer' }}>Import XLSX<input type="file" accept=".xlsx,.xls" style={{ display: 'none' }} onChange={onImportXlsx} /></label>
         <label className="btn ghost" style={{ cursor: 'pointer' }}>Import CSV<input type="file" accept=".csv" style={{ display: 'none' }} onChange={onImportCsv} /></label>
-        <button className="btn" onClick={() => exportMonitoring(active)}>Export</button>
+        <button className="btn" onClick={() => exportMonitoringXlsx(active)}>Export XLSX</button>
+        <button className="btn" onClick={() => exportMonitoring(active)}>Export CSV</button>
       </div>
 
       {editRec && <MonEditor rec={editRec} onSave={(r) => { patch((s) => { if (r.id && s.monitoring.some((x) => x.id === r.id)) s.monitoring = s.monitoring.map((x) => (x.id === r.id ? r : x)); else s.monitoring = [...s.monitoring, { ...r, id: uid('mon'), archived: false }]; }); setEditRec(null); showToast('success', 'Fund saved.'); }} onClose={() => setEditRec(null)} />}
