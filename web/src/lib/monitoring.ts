@@ -215,14 +215,31 @@ export function parseCsv(text: string): string[][] {
     .filter((r) => r.length && !(r.length === 1 && r[0].trim() === ''));
 }
 
+// Export header + row layout — identical for CSV and XLSX and matching what the
+// importer reads (Fund/Analyst/Monitoring Level/Most Recent Date/Monitoring
+// Date/Target Monitoring Days). Status/Annual Onsite/Compliance Check are kept
+// for reference; the importer ignores them. A file exported here re-imports
+// cleanly.
+const EXPORT_HEAD = ['Fund', 'Analyst', 'Monitoring Level', 'Most Recent Date', 'Monitoring Date', 'Status', 'Target Monitoring Days', 'Annual Onsite', 'Compliance Check'];
+function exportRow(m: Monitoring): (string | number)[] {
+  return [m.fund, m.analyst, m.level, formatDateMMDDYYYY(m.mostRecent), formatDateMMDDYYYY(m.monitoringDate), monStatus(m), m.targetMonitoringDays, m.annualOnsite ? 'Yes' : 'No', m.complianceCheck ? 'Yes' : 'No'];
+}
+function exportName(ext: string): string {
+  return 'AIM_Monitoring_' + todayLocal().getFullYear() + '.' + ext;
+}
+
 export function exportMonitoring(active: Monitoring[]): void {
-  const head = ['Fund', 'Analyst', 'Monitoring Level', 'Most Recent Date', 'Monitoring Date', 'Status', 'Target Monitoring Days', 'Annual Onsite', 'Compliance Check'];
-  const lines = [head.join(',')].concat(
-    active.map((m) =>
-      [m.fund, m.analyst, m.level, formatDateMMDDYYYY(m.mostRecent), formatDateMMDDYYYY(m.monitoringDate), monStatus(m), m.targetMonitoringDays, m.annualOnsite ? 'Yes' : 'No', m.complianceCheck ? 'Yes' : 'No']
-        .map((x) => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"')
-        .join(','),
-    ),
+  const lines = [EXPORT_HEAD.join(',')].concat(
+    active.map((m) => exportRow(m).map((x) => '"' + String(x == null ? '' : x).replace(/"/g, '""') + '"').join(',')),
   );
-  download('AIM_Monitoring_' + todayLocal().getFullYear() + '.csv', lines.join('\n'));
+  download(exportName('csv'), lines.join('\n'));
+}
+
+export function exportMonitoringXlsx(active: Monitoring[]): void {
+  const ws = XLSX.utils.aoa_to_sheet([EXPORT_HEAD, ...active.map(exportRow)]);
+  const wb = XLSX.utils.book_new();
+  // Sheet name matches the importer's preferred /coverage|monitor/ pattern so a
+  // re-import auto-selects it.
+  XLSX.utils.book_append_sheet(wb, ws, 'New Coverage');
+  XLSX.writeFile(wb, exportName('xlsx'));
 }

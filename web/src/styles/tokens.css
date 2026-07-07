@@ -91,6 +91,8 @@ tbody tr.sel:hover { background: rgba(201,168,76,.2); }
 td.ovr, .ovr { color: var(--red); font-weight: 600; }
 .star { color: var(--gold); font-size: 15px; margin-right: 4px; cursor: default; }
 .num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Travel Schedule tables center every column (header + data). */
+.trv-center thead th, .trv-center tbody td { text-align: center; }
 .nowrap { white-space: nowrap; }
 .clip { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .section-bar { display: flex; align-items: center; gap: 10px; margin: 18px 0 8px; cursor: pointer; }
@@ -163,6 +165,9 @@ th.srt { cursor: pointer; user-select: none; } th.srt:hover { color: var(--blue)
    padding but the calendar drops the 1500px cap so the week is as wide as
    possible. */
 .cal-module { max-width: none; }
+/* PRC spans the full content width so the wide Meeting Archive table fits
+   without horizontal scrolling. */
+.prc-module { max-width: none; }
 /* minmax(0,1fr) forces seven equal, fixed tracks: a long task/trip label can no
    longer set a cell's min-content and stretch its column past the others. */
 .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
