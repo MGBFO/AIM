@@ -46,6 +46,7 @@ export function Bandwidth() {
       if (fStatus === 'Overdue') { if (!isTaskOverdue(t)) return false; }
       else if (fStatus === 'Open') { if (t.status !== 'open') return false; }
       else if (fStatus === 'Completed') { if (t.status !== 'completed') return false; }
+      else if (fStatus === 'Ex-completed') { if (t.status === 'completed') return false; }
     }
     if (!taskMatchesPeriodFilter(t, period)) return false;
     if (search) { const q = search.toLowerCase(); if (!(t.title || '').toLowerCase().includes(q) && !(t.description || '').toLowerCase().includes(q)) return false; }
@@ -107,7 +108,7 @@ export function Bandwidth() {
         <button className="btn gold" onClick={() => setEdit({ _new: true, analysts: ['Unassigned'], label: 'Ad Hoc', status: 'open', recurrenceType: 'none', sourceModule: 'Manual', createdBy: 'User' })}>New Task</button>
         <select className="inp-sm" value={fAnalyst} onChange={(e) => setFAnalyst(e.target.value)}><option>All Analysts</option>{APPROVED_ANALYSTS.map((a) => <option key={a}>{a}</option>)}</select>
         <select className="inp-sm" value={fLabel} onChange={(e) => setFLabel(e.target.value)}><option>All Labels</option>{LABELS.map((l) => <option key={l}>{l}</option>)}</select>
-        <select className="inp-sm" value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option>All Statuses</option><option>Open</option><option>Completed</option><option>Overdue</option></select>
+        <select className="inp-sm" value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option>All Statuses</option><option>Open</option><option>Completed</option><option>Overdue</option><option>Ex-completed</option></select>
         <select className="inp-sm" value={fSource} onChange={(e) => setFSource(e.target.value)}><option>All Sources</option>{SOURCES.map((s) => <option key={s}>{s}</option>)}</select>
         <select className="inp-sm" value={period} onChange={(e) => setPeriod(e.target.value)}>{PERIODS.map((p) => <option key={p}>{p}</option>)}</select>
         <input className="inp-sm" style={{ width: '150px' }} placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
