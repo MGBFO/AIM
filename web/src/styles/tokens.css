@@ -143,7 +143,7 @@ th.srt { cursor: pointer; user-select: none; } th.srt:hover { color: var(--blue)
 
 .empty { text-align: center; color: var(--muted); padding: 40px; font-size: 15px; background: var(--card); border: 1px dashed var(--line); border-radius: 10px; }
 .analyst-card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
-.analyst-head { background: #2E5F8A; padding: 11px 16px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #24506f; }
+.analyst-head { background: #1E2D3D; padding: 11px 16px; display: flex; align-items: center; gap: 14px; border-bottom: 1px solid #16212d; }
 .analyst-head .nm { font-family: 'Fraunces', serif; font-size: 16px; color: #fff; font-weight: 600; }
 .analyst-head .mini { color: #d6e2ef; }
 .analyst-head .mini b { color: #fff; }
