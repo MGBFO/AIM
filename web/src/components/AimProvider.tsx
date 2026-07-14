@@ -6,6 +6,7 @@ import { addRecurringInterval } from '../lib/dates';
 import { uid } from '../lib/util';
 import { diffById } from '../lib/diff';
 import { reconcileTaskLinks } from '../lib/sync';
+import { initUserPrefs } from '../lib/userPrefs';
 import { AimContext, type AimApi } from '../hooks/useAim';
 import {
   type AimState, type Task, EMPTY_MAPPING,
@@ -86,6 +87,10 @@ export function AimProvider({ children }: { children: ReactNode }) {
         dyn.from('prc_config').select('key,value'),
         dyn.from('app_config').select('key,value'),
       ]);
+      if (cancelled) return;
+      // Load this user's saved UI prefs (Save View, etc.) before we go ready,
+      // so modules read a warm cache.
+      try { const { data: u } = await dyn.auth.getUser(); await initUserPrefs(u?.user?.id ?? null); } catch { await initUserPrefs(null); }
       if (cancelled) return;
       const mapping = (cfg ?? []).find((r: { key: string }) => r.key === 'mapping')?.value;
       const roll = (app ?? []).find((r: { key: string }) => r.key === 'mon_rollover')?.value;

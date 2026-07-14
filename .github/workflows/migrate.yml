@@ -1,0 +1,28 @@
+name: Apply DB migrations (no seed)
+
+# Applies any un-applied supabase/migrations/*.sql to your Supabase project via
+# the Management API. Safe for production: it does NOT seed or wipe any data —
+# migrations are additive and tracked in _aim_migrations so re-runs only apply
+# what's new. Use this to roll out new schema (e.g. the user_prefs table)
+# without touching existing rows.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: Apply migrations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Apply database migrations (Supabase Management API)
+        run: node scripts/apply_migrations.mjs
+        env:
+          SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

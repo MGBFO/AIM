@@ -51,37 +51,54 @@ async function runSql(sql) {
 const here = dirname(fileURLToPath(import.meta.url));
 const migDir = join(here, '..', 'supabase', 'migrations');
 
-// Guard: skip if already migrated so re-runs are safe.
-try {
-  const out = await runSql("select to_regclass('public.trips') as t");
-  let present = false;
-  try {
-    const parsed = JSON.parse(out);
-    const rows = Array.isArray(parsed) ? parsed : parsed.result || [];
-    present = rows[0] && rows[0].t != null;
-  } catch { /* fall through to apply */ }
-  if (present) {
-    console.log('Schema already present (public.trips exists) — skipping migrations.');
-    process.exit(0);
-  }
-} catch (e) {
-  console.error('Could not reach the Supabase Management API:', e.message);
-  process.exit(1);
-}
-
 const files = readdirSync(migDir).filter((f) => f.endsWith('.sql')).sort();
 if (!files.length) {
   console.error('No migration files found.');
   process.exit(1);
 }
-for (const f of files) {
-  process.stdout.write(`Applying ${f} … `);
-  try {
-    await runSql(readFileSync(join(migDir, f), 'utf8'));
-    console.log('ok');
-  } catch (e) {
-    console.error('FAILED\n' + e.message);
-    process.exit(1);
+const numPrefix = (f) => parseInt((f.match(/^(\d+)/) || [])[1] || '0', 10);
+
+// Incremental, idempotent migration tracking. Each applied file is recorded in
+// _aim_migrations so re-runs only apply what's new.
+try {
+  await runSql('create table if not exists public._aim_migrations (name text primary key, applied_at timestamptz not null default now())');
+
+  const appliedOut = await runSql('select name from public._aim_migrations');
+  const parseRows = (out) => { try { const p = JSON.parse(out); return Array.isArray(p) ? p : p.result || []; } catch { return []; } };
+  let applied = new Set(parseRows(appliedOut).map((r) => r.name));
+
+  // Bootstrap for databases created before tracking existed: if nothing is
+  // recorded yet but the core schema is present (public.trips), assume the
+  // original schema migrations (<= 0005) were already applied and record them,
+  // so we don't try to re-run them.
+  if (applied.size === 0) {
+    const tripsOut = await runSql("select to_regclass('public.trips') as t");
+    const tripsPresent = parseRows(tripsOut)[0] && parseRows(tripsOut)[0].t != null;
+    if (tripsPresent) {
+      const baseline = files.filter((f) => numPrefix(f) <= 5);
+      for (const f of baseline) {
+        const esc = f.replace(/'/g, "''");
+        await runSql(`insert into public._aim_migrations(name) values('${esc}') on conflict do nothing`);
+      }
+      applied = new Set(baseline);
+      console.log(`Bootstrapped tracking with ${baseline.length} pre-existing migration(s).`);
+    }
   }
+
+  const pending = files.filter((f) => !applied.has(f));
+  if (!pending.length) {
+    console.log('No new migrations to apply.');
+    process.exit(0);
+  }
+  for (const f of pending) {
+    process.stdout.write(`Applying ${f} … `);
+    await runSql(readFileSync(join(migDir, f), 'utf8'));
+    const esc = f.replace(/'/g, "''");
+    await runSql(`insert into public._aim_migrations(name) values('${esc}') on conflict do nothing`);
+    console.log('ok');
+  }
+  console.log(`Applied ${pending.length} migration(s).`);
+} catch (e) {
+  console.error('Migration failed:', e.message);
+  process.exit(1);
 }
-console.log(`All ${files.length} migrations applied.`);
