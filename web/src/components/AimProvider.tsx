@@ -5,6 +5,7 @@ import { showToast } from '../lib/toast';
 import { addRecurringInterval } from '../lib/dates';
 import { uid } from '../lib/util';
 import { diffById } from '../lib/diff';
+import { reconcileTaskLinks } from '../lib/sync';
 import { AimContext, type AimApi } from '../hooks/useAim';
 import {
   type AimState, type Task, EMPTY_MAPPING,
@@ -195,6 +196,7 @@ export function AimProvider({ children }: { children: ReactNode }) {
     const prev = stateRef.current;
     const draft: AimState = structuredClone(prev);
     mutator(draft);
+    reconcileTaskLinks(prev, draft); // keep linked tasks/trips/monitoring in sync
     undoStack.current.push(prev);
     if (undoStack.current.length > 80) undoStack.current.shift();
     redoStack.current = [];
