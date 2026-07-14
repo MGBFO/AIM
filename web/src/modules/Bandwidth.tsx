@@ -3,6 +3,7 @@ import { useAim } from '../hooks/useAim';
 import { applyColSort, nextSortDir, sortCaret, type SortState } from '../lib/sort';
 import { APPROVED_ANALYSTS } from '../lib/roster';
 import { showToast } from '../lib/toast';
+import { playBell } from '../lib/sound';
 import { DateCell } from '../components/DateCell';
 import { Confirm } from '../components/Confirm';
 import { TaskEditor, type EditableTask } from '../components/TaskEditor';
@@ -147,7 +148,7 @@ export function Bandwidth() {
                     <td className="nowrap">{t.sourceModule}</td>
                     <td className="nowrap">{done ? <span className="pill green">Completed</span> : isOvr ? <span className="pill red">Overdue</span> : <span className="pill gray">Open</span>}</td>
                     <td className="nowrap" onClick={(e) => e.stopPropagation()}>
-                      {!done && <button className="btn sm blue" onClick={() => completeTask(t.id)}>Complete</button>}
+                      {!done && <button className="btn sm blue" onClick={() => { completeTask(t.id); playBell(); }}>Complete</button>}
                       <button className="btn sm ghost" style={{ marginLeft: '5px' }} onClick={() => onDelete(t)}>Delete</button>
                     </td>
                   </tr>); })}</tbody>

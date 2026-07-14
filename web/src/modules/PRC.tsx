@@ -55,6 +55,17 @@ export function PRC() {
   const editProjected = (id: string, iso: string) => patch((s) => { s.prcSchedule = s.prcSchedule.map((r) => (r.id === id ? { ...r, projectedNext: iso || null } : r)); });
   const editSchedMacro = (id: string, v: string) => patch((s) => { s.prcSchedule = s.prcSchedule.map((r) => (r.id === id ? { ...r, macro: v } : r)); });
   const editArchMacro = (id: string, v: string) => patch((s) => { s.prcArchive = s.prcArchive.map((r) => (r.id === id ? { ...r, macro: v } : r)); });
+  // Reset every Meeting Schedule row's Projected Next in 14-day steps from the
+  // top (first-shown) row's date: row 2 = +14, row 3 = +28, and so on.
+  const dateReset = () => {
+    const order = schedRows;
+    const anchor = order[0]?.projectedNext;
+    if (!anchor) { showToast('error', "Set the top row's Projected Next date first."); return; }
+    snap();
+    const newDates = new Map(order.map((r, i) => [r.id, addDaysISO(anchor, i * 14)]));
+    patch((s) => { s.prcSchedule = s.prcSchedule.map((r) => (newDates.has(r.id) ? { ...r, projectedNext: newDates.get(r.id)! } : r)); });
+    showToast('success', 'Projected Next dates reset in 14-day steps from the top row.', { undo: restore });
+  };
 
   const doArchive = () => {
     if (!sel) { showToast('error', 'Please select a meeting to archive'); return; }
@@ -107,6 +118,7 @@ export function PRC() {
         <button className={'btn ghost' + (!sel ? ' faded' : '')} onClick={() => { if (sel) doDeleteSched(); }}>Delete</button>
         <button className="btn" onClick={() => setShowMap(true)}>Mapping</button>
         <button className="btn" onClick={() => setShowFund(true)}>Fund List</button>
+        <button className="btn" onClick={dateReset}>Date Reset</button>
       </div>
       <div className="tbl-wrap"><table>
         <thead><tr><th></th><SH k="mostRecent">Most Recent</SH><SH k="projectedNext">Projected Next</SH><SH k="macro">Macro</SH><SH k="presentation">Presentation</SH><SH k="act40">40-Act</SH><SH k="hedgeFund">Hedge Fund</SH><SH k="private">Private</SH><SH k="newFunds">New Funds / Projects</SH></tr></thead>
