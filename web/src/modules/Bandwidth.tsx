@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useAim } from '../hooks/useAim';
+import { useSavedView } from '../hooks/useSavedView';
 import { applyColSort, nextSortDir, sortCaret, type SortState } from '../lib/sort';
 import { APPROVED_ANALYSTS } from '../lib/roster';
 import { showToast } from '../lib/toast';
@@ -18,12 +19,13 @@ type ConfirmState = { title: string; message: string; confirmLabel: string; onCo
 
 export function Bandwidth() {
   const { state, patch, addTask, updateTask, deleteTask, completeTask } = useAim();
-  const [fAnalyst, setFAnalyst] = useState('All Analysts');
-  const [fLabel, setFLabel] = useState('All Labels');
-  const [fStatus, setFStatus] = useState('All Statuses');
-  const [fSource, setFSource] = useState('All Sources');
-  const [period, setPeriod] = useState(state.prefs.abPeriod || 'Current Month');
-  const [search, setSearch] = useState('');
+  const { initial: savedView, saveView, setSaveView, save } = useSavedView('bandwidth');
+  const [fAnalyst, setFAnalyst] = useState(savedView.on ? String(savedView.v.fAnalyst ?? 'All Analysts') : 'All Analysts');
+  const [fLabel, setFLabel] = useState(savedView.on ? String(savedView.v.fLabel ?? 'All Labels') : 'All Labels');
+  const [fStatus, setFStatus] = useState(savedView.on ? String(savedView.v.fStatus ?? 'All Statuses') : 'All Statuses');
+  const [fSource, setFSource] = useState(savedView.on ? String(savedView.v.fSource ?? 'All Sources') : 'All Sources');
+  const [period, setPeriod] = useState(savedView.on && savedView.v.period ? String(savedView.v.period) : (state.prefs.abPeriod || 'Current Month'));
+  const [search, setSearch] = useState(savedView.on ? String(savedView.v.search ?? '') : '');
   const [edit, setEdit] = useState<EditableTask | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [sort, setSort] = useState<SortState>({ key: null, dir: null });
@@ -34,6 +36,8 @@ export function Bandwidth() {
     patch((s) => { s.prefs = { ...s.prefs, abPeriod: period }; });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [period]);
+
+  useEffect(() => { save({ fAnalyst, fLabel, fStatus, fSource, period, search }); }, [save, fAnalyst, fLabel, fStatus, fSource, period, search]);
 
   const matches = (t: Task) => {
     if (fLabel !== 'All Labels' && t.label !== fLabel) return false;
@@ -108,6 +112,7 @@ export function Bandwidth() {
         <select className="inp-sm" value={period} onChange={(e) => setPeriod(e.target.value)}>{PERIODS.map((p) => <option key={p}>{p}</option>)}</select>
         <input className="inp-sm" style={{ width: '150px' }} placeholder="Search…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <button className="btn ghost" onClick={clearFilters}>Clear Filters</button>
+        <label className="save-view" title="Remember these filters on this device"><input type="checkbox" className="chk" checked={saveView} onChange={(e) => setSaveView(e.target.checked)} /> Save View</label>
         <div className="spacer"></div>
         <button className="btn ghost" onClick={() => exportTasks(state.tasks)}>Export</button>
         <label className="btn ghost" style={{ cursor: 'pointer' }}>Import<input type="file" accept=".json" style={{ display: 'none' }} onChange={importTasks} /></label>

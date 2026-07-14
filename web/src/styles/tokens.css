@@ -94,6 +94,7 @@ td.ovr, .ovr { color: var(--red); font-weight: 600; }
 /* Travel Schedule tables center every column (header + data). */
 .trv-center thead th, .trv-center tbody td { text-align: center; }
 .nowrap { white-space: nowrap; }
+.save-view { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; color: var(--navy); white-space: nowrap; cursor: pointer; }
 .clip { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .section-bar { display: flex; align-items: center; gap: 10px; margin: 18px 0 8px; cursor: pointer; }
 .section-bar h3 { font-family: 'Fraunces', serif; font-size: 17px; color: var(--navy); margin: 0; }

@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useAim } from '../hooks/useAim';
+import { useSavedView } from '../hooks/useSavedView';
 import { toISO, parseLocalDate, todayLocal, addDaysISO, formatDateMMDDYYYY, getLocalMonthRange, inRange } from '../lib/dates';
 import { applyColSort, nextSortDir, sortCaret, type SortState } from '../lib/sort';
 import { APPROVED_ANALYSTS } from '../lib/roster';
@@ -30,12 +31,15 @@ export function Monitoring() {
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [rollover, setRollover] = useState(false);
   const [bulk, setBulk] = useState(false);
-  const [fAnalyst, setFAnalyst] = useState('All');
-  const [fLevel, setFLevel] = useState('All');
-  const [fStatus, setFStatus] = useState('All');
-  const [search, setSearch] = useState('');
+  const { initial: savedView, saveView, setSaveView, save } = useSavedView('monitoring');
+  const [fAnalyst, setFAnalyst] = useState(savedView.on ? String(savedView.v.fAnalyst ?? 'All') : 'All');
+  const [fLevel, setFLevel] = useState(savedView.on ? String(savedView.v.fLevel ?? 'All') : 'All');
+  const [fStatus, setFStatus] = useState(savedView.on ? String(savedView.v.fStatus ?? 'All') : 'All');
+  const [search, setSearch] = useState(savedView.on ? String(savedView.v.search ?? '') : '');
   const [importDiag, setImportDiag] = useState<ImportDiag | null>(null);
   const [sort, setSort] = useState<SortState>({ key: null, dir: null });
+
+  useEffect(() => { save({ fAnalyst, fLevel, fStatus, search }); }, [save, fAnalyst, fLevel, fStatus, search]);
 
   const setMon = (mapper: (list: Monitoring[]) => Monitoring[]) => patch((s) => { s.monitoring = mapper(s.monitoring); });
   const monGet = (m: Monitoring, k: string) => (k === '__status' ? monStatus(m) : m[k as keyof Monitoring]);
@@ -184,6 +188,7 @@ export function Monitoring() {
         <select className="inp-sm" value={fAnalyst} onChange={(e) => setFAnalyst(e.target.value)}><option>All</option>{APPROVED_ANALYSTS.map((a) => <option key={a}>{a}</option>)}</select>
         <select className="inp-sm" value={fLevel} onChange={(e) => setFLevel(e.target.value)}><option>All</option>{LEVELS.map((l) => <option key={l}>{l}</option>)}</select>
         <select className="inp-sm" value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option>All</option><option>Not Started</option><option>In Progress</option><option>Completed</option><option>Overdue</option></select>
+        <label className="save-view" title="Remember these filters on this device"><input type="checkbox" className="chk" checked={saveView} onChange={(e) => setSaveView(e.target.checked)} /> Save View</label>
       </div>
 
       <div className="tbl-wrap"><table>
