@@ -145,11 +145,11 @@ export function Bandwidth() {
                 </tr></thead>
                 <tbody>{tasks.map((t) => { const isOvr = isTaskOverdue(t); const done = t.status === 'completed';
                   return (<tr key={t.id} className={done ? 'completed' : ''}>
-                    <td className="ttl" style={{ cursor: 'pointer', fontWeight: 600, maxWidth: '280px' }} onClick={() => setEdit(t)}>
+                    <td className={'ttl' + (isOvr ? ' ovr' : '')} style={{ cursor: 'pointer', fontWeight: 600, maxWidth: '280px' }} onClick={() => setEdit(t)}>
                       {done && '✓ '}{t.title}
                       {t.analysts.length > 1 && <div className="shared-tag">Shared: {t.analysts.join(' / ')}</div>}</td>
                     <td><span className="lbl" style={labelStyle(t.label)}>{t.label}</span></td>
-                    <td className={'nowrap' + (isOvr ? ' ovr' : '')} onClick={(e) => e.stopPropagation()}><DateCell value={t.dueDate} onCommit={(v) => { if (!v) { showToast('error', 'Due date is required.'); return; } updateTask(t.id, { dueDate: v }); }} />{isOvr && <span className="pill red" style={{ marginLeft: 6 }}>Overdue</span>}</td>
+                    <td className={'nowrap' + (isOvr ? ' ovr' : '')} onClick={(e) => e.stopPropagation()}><DateCell value={t.dueDate} onCommit={(v) => { if (!v) { showToast('error', 'Due date is required.'); return; } updateTask(t.id, { dueDate: v }); }} /></td>
                     <td className="nowrap">{t.sourceModule}</td>
                     <td className="nowrap">{done ? <span className="pill green">Completed</span> : isOvr ? <span className="pill red">Overdue</span> : <span className="pill gray">Open</span>}</td>
                     <td className="nowrap" onClick={(e) => e.stopPropagation()}>
