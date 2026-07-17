@@ -4,7 +4,7 @@ import { useSavedView } from '../hooks/useSavedView';
 import { applyColSort, nextSortDir, sortCaret, type SortState } from '../lib/sort';
 import { APPROVED_ANALYSTS } from '../lib/roster';
 import { showToast } from '../lib/toast';
-import { playBell } from '../lib/sound';
+import { playCompletion, primeCompletionSound } from '../lib/sound';
 import { DateCell } from '../components/DateCell';
 import { Confirm } from '../components/Confirm';
 import { TaskEditor, type EditableTask } from '../components/TaskEditor';
@@ -38,6 +38,7 @@ export function Bandwidth() {
   }, [period]);
 
   useEffect(() => { save({ fAnalyst, fLabel, fStatus, fSource, period, search }); }, [save, fAnalyst, fLabel, fStatus, fSource, period, search]);
+  useEffect(() => { primeCompletionSound(); }, []); // decode the chime ahead of first use
 
   const matches = (t: Task) => {
     if (fLabel !== 'All Labels' && t.label !== fLabel) return false;
@@ -154,7 +155,7 @@ export function Bandwidth() {
                     <td className="nowrap">{t.sourceModule}</td>
                     <td className="nowrap">{done ? <span className="pill green">Completed</span> : isOvr ? <span className="pill red">Overdue</span> : <span className="pill gray">Open</span>}</td>
                     <td className="nowrap" onClick={(e) => e.stopPropagation()}>
-                      {!done && <button className="btn sm blue" onClick={() => { completeTask(t.id); playBell(); }}>Complete</button>}
+                      {!done && <button className="btn sm blue" onClick={() => { completeTask(t.id); playCompletion(); }}>Complete</button>}
                       <button className="btn sm ghost" style={{ marginLeft: '5px' }} onClick={() => onDelete(t)}>Delete</button>
                     </td>
                   </tr>); })}</tbody>
