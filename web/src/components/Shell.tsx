@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import logo from '../assets/logo.png';
 import { useAuth } from '../hooks/useAuth';
 import { useAim } from '../hooks/useAim';
+import { setUserPref } from '../lib/userPrefs';
+import { soundEnabled, soundVolume, playCompletion, primeCompletionSound } from '../lib/sound';
 import { ErrorBoundary } from './ErrorBoundary';
 import { Dashboard } from '../modules/Dashboard';
 import { Travel } from '../modules/Travel';
@@ -73,6 +75,7 @@ export function Shell() {
           <button title="Redo (Ctrl+Y)" aria-label="Redo" onClick={redo}>↷</button>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 10 }}>
+          <SoundSettings />
           <span className="brand-sub" title={user?.email ?? ''} style={{ maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
           <button className="btn ghost sm" onClick={() => void signOut()}>Sign out</button>
         </div>
@@ -81,5 +84,37 @@ export function Shell() {
         {ready ? <Active /> : <div className="empty" style={{ margin: 60 }}>Loading data…</div>}
       </ErrorBoundary>
     </>
+  );
+}
+
+/** Header control: toggle the completion chime and set its volume (per user). */
+function SoundSettings() {
+  const [open, setOpen] = useState(false);
+  const [enabled, setEnabled] = useState(soundEnabled());
+  const [volume, setVolume] = useState(Math.round(soundVolume() * 100));
+
+  useEffect(() => { primeCompletionSound(); }, []);
+
+  const toggle = (v: boolean) => { setEnabled(v); setUserPref('sound.enabled', v); };
+  const changeVol = (v: number) => { setVolume(v); setUserPref('sound.volume', v / 100); };
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button className="btn ghost sm" title="Completion sound" aria-label="Completion sound settings" onClick={() => setOpen((o) => !o)}>
+        {enabled ? '🔊' : '🔇'}
+      </button>
+      {open && (
+        <div className="sound-pop" onMouseLeave={() => setOpen(false)}>
+          <label className="save-view" style={{ fontSize: 13 }}>
+            <input type="checkbox" className="chk" checked={enabled} onChange={(e) => toggle(e.target.checked)} /> Completion sound
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span className="mini">Volume</span>
+            <input type="range" min={0} max={100} value={volume} disabled={!enabled} onChange={(e) => changeVol(Number(e.target.value))} style={{ flex: 1 }} />
+          </div>
+          <button className="btn ghost sm" disabled={!enabled} onClick={() => playCompletion()}>Test sound</button>
+        </div>
+      )}
+    </div>
   );
 }
