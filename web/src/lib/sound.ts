@@ -34,17 +34,18 @@ export function playBell(): void {
       { f: 1320, g: 0.24 },
       { f: 1760, g: 0.14 },
     ];
+    const decay = 2.6; // seconds — long enough that the tail isn't clipped
     for (const { f, g } of partials) {
       const osc = ac.createOscillator();
       const gain = ac.createGain();
       osc.type = 'sine';
       osc.frequency.value = f;
       gain.gain.setValueAtTime(g, now);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.2);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
       osc.connect(gain);
       gain.connect(master);
       osc.start(now);
-      osc.stop(now + 1.25);
+      osc.stop(now + decay + 0.1);
     }
   } catch {
     /* audio is a nicety — never let it break the action */
