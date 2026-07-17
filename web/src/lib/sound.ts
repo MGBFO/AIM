@@ -7,7 +7,7 @@
    page loads, failed saves, or other users' realtime updates — only by the
    explicit "Complete" action.
    ========================================================================== */
-import completionUrl from '../assets/completion-dundie.wav';
+import completionUrl from '../assets/completion-arcade.wav';
 import { getUserPref } from './userPrefs';
 
 type ACtor = typeof AudioContext;
