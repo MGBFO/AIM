@@ -2,7 +2,7 @@
    Monitoring helpers + spreadsheet import parser — ported from the spec.
    ========================================================================== */
 import * as XLSX from 'xlsx';
-import { parseLocalDate, todayLocal, formatDateMMDDYYYY } from './dates';
+import { parseLocalDate, todayLocal, formatDateMMDDYYYY, addDaysISO } from './dates';
 import { normalizeAnalystName } from './roster';
 import { uid } from './util';
 import { download } from './format';
@@ -26,6 +26,21 @@ export function monStatus(m: Monitoring): string {
 export function isMonOverdue(m: Monitoring): boolean {
   return !m.archived && monStatus(m) === 'Overdue';
 }
+/**
+ * Complete-and-roll-forward for a monitoring item — the single source of truth
+ * shared by the Monitoring Process module and Analyst Bandwidth. Ends the
+ * current cycle (stamps Most Recent = the cycle's Monitoring Date) and advances
+ * the Monitoring Date to the next cycle: base + the item's Target Monitoring
+ * Days (which is set per Monitoring Level). `base` is the global rollover anchor
+ * when set, otherwise the current Monitoring Date. The item stays active — it is
+ * never archived or removed here.
+ */
+export function completeAndRollForwardMonitoringItem(m: Monitoring, rolloverBase: string | null): Monitoring {
+  const base = rolloverBase || m.monitoringDate;
+  const nextDate = base ? addDaysISO(base, m.targetMonitoringDays) : m.monitoringDate;
+  return { ...m, mostRecent: m.monitoringDate, monitoringDate: nextDate, status: 'Completed' };
+}
+
 export function rolloverLabel(iso: string | null): string {
   if (!iso) return 'Not Set';
   const d = parseLocalDate(iso)!;

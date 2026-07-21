@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toISO, todayLocal, addDaysISO } from './dates';
-import { parseLevel, levelDays, monStatus, isMonOverdue, rolloverLabel, excelToISO, parseMonitoringSheet } from './monitoring';
+import { parseLevel, levelDays, monStatus, isMonOverdue, rolloverLabel, excelToISO, parseMonitoringSheet, completeAndRollForwardMonitoringItem } from './monitoring';
 import type { Monitoring } from './domain';
 
 const mon = (p: Partial<Monitoring>): Monitoring => ({
@@ -23,6 +23,25 @@ describe('monStatus / isMonOverdue', () => {
     expect(isMonOverdue(mon({ monitoringDate: past }))).toBe(true);
     expect(isMonOverdue(mon({ monitoringDate: past, archived: true }))).toBe(false);
     expect(monStatus(mon({ status: 'Completed', monitoringDate: past }))).toBe('Completed');
+  });
+});
+
+describe('completeAndRollForwardMonitoringItem', () => {
+  it('stamps Most Recent and advances Monitoring Date by Target days (no rollover base)', () => {
+    const r = completeAndRollForwardMonitoringItem(mon({ monitoringDate: '2026-01-01', targetMonitoringDays: 90 }), null);
+    expect(r.status).toBe('Completed');
+    expect(r.mostRecent).toBe('2026-01-01');
+    expect(r.monitoringDate).toBe(addDaysISO('2026-01-01', 90));
+    expect(r.archived).toBe(false); // stays active
+  });
+  it('advances from the global rollover base when set', () => {
+    const r = completeAndRollForwardMonitoringItem(mon({ monitoringDate: '2026-01-01', targetMonitoringDays: 180 }), '2026-07-01');
+    expect(r.monitoringDate).toBe(addDaysISO('2026-07-01', 180));
+    expect(r.mostRecent).toBe('2026-01-01');
+  });
+  it('uses the level-appropriate Target (L3 = 365)', () => {
+    const r = completeAndRollForwardMonitoringItem(mon({ level: 'Level 3', monitoringDate: '2026-01-01', targetMonitoringDays: 365 }), null);
+    expect(r.monitoringDate).toBe(addDaysISO('2026-01-01', 365));
   });
 });
 

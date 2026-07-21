@@ -6,6 +6,7 @@ import { addRecurringInterval } from '../lib/dates';
 import { uid } from '../lib/util';
 import { diffById } from '../lib/diff';
 import { reconcileTaskLinks } from '../lib/sync';
+import { completeAndRollForwardMonitoringItem } from '../lib/monitoring';
 import { initUserPrefs } from '../lib/userPrefs';
 import { AimContext, type AimApi } from '../hooks/useAim';
 import {
@@ -255,6 +256,21 @@ export function AimProvider({ children }: { children: ReactNode }) {
     const t = stateRef.current.tasks.find((x) => x.id === id);
     if (!t) return;
     const now = new Date().toISOString();
+    // Monitoring calls: end the current cycle AND roll the linked monitoring
+    // item forward to its next cycle — same logic as the Monitoring Process
+    // module (completeAndRollForwardMonitoringItem).
+    if (t.sourceModule === 'Monitoring Process' && t.sourceId) {
+      const mon = stateRef.current.monitoring.find((x) => x.id === t.sourceId && !x.archived);
+      if (mon) {
+        const hist = [...(t.completedHistory || []), { id: uid('h'), completedDueDate: t.dueDate, completedAt: now, completedBy: 'User', note: '' }];
+        patch((s) => {
+          s.monitoring = s.monitoring.map((x) => (x.id === mon.id ? completeAndRollForwardMonitoringItem(x, s.monRollover) : x));
+          s.tasks = s.tasks.map((x) => (x.id === id ? { ...x, status: 'completed', completedAt: now, completedHistory: hist } : x));
+        });
+        showToast('success', 'Monitoring call completed — rolled forward to the next cycle.');
+        return;
+      }
+    }
     if (t.recurrenceType && t.recurrenceType !== 'none') {
       if (!t.dueDate) { showToast('error', 'Add a due date before completing a recurring task.'); return; }
       const hist = [...(t.completedHistory || []), { id: uid('h'), completedDueDate: t.dueDate, completedAt: now, completedBy: 'User', note: '' }];
