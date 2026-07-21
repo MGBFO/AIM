@@ -8,7 +8,7 @@ import { uid } from '../lib/util';
 import { showToast } from '../lib/toast';
 import {
   levelDays, monStatus, isMonOverdue, rolloverLabel, exportMonitoring, exportMonitoringXlsx,
-  readMonitoringWorkbook, parseMonitoringSheet, parseCsv, type ImportDiag,
+  readMonitoringWorkbook, parseMonitoringSheet, parseCsv, completeAndRollForwardMonitoringItem, type ImportDiag,
 } from '../lib/monitoring';
 import { DateCell } from '../components/DateCell';
 import { Modal } from '../components/Modal';
@@ -78,11 +78,7 @@ export function Monitoring() {
     if (v === 'Completed') {
       if (!m.monitoringDate) { showToast('error', 'Add a Monitoring Date before marking completed.'); return; }
       patch((s) => {
-        s.monitoring = s.monitoring.map((x) => {
-          if (x.id !== m.id) return x;
-          const next = addDaysISO(s.monRollover || x.monitoringDate, x.targetMonitoringDays);
-          return { ...x, mostRecent: x.monitoringDate, monitoringDate: next, status: 'Completed' };
-        });
+        s.monitoring = s.monitoring.map((x) => (x.id === m.id ? completeAndRollForwardMonitoringItem(x, s.monRollover) : x));
       });
     } else patch((s) => { s.monitoring = s.monitoring.map((x) => (x.id === m.id ? { ...x, status: v } : x)); });
   };
