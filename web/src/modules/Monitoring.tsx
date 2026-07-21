@@ -173,7 +173,7 @@ export function Monitoring() {
       </div>
 
       <div className="ribbon">
-        <button className="btn gold" onClick={() => setEditRec({ level: 'Level 1', status: 'Not Started', analyst: 'Unassigned', annualOnsite: true, complianceCheck: true, targetMonitoringDays: 90 })}>New Fund</button>
+        <button className="btn gold" onClick={() => setEditRec({ level: 'Level 1', status: 'Not Started', analyst: 'Unassigned', annualOnsite: false, complianceCheck: false, targetMonitoringDays: 90 })}>New Fund</button>
         <button className="btn ghost" onClick={doDelete}>Delete</button>
         <button className="btn blue" onClick={doArchive}>Archive</button>
         <button className="btn" disabled={selRecs().length < 2} onClick={() => setBulk(true)}>Bulk Edit</button>
