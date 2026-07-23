@@ -193,6 +193,15 @@ th.srt { cursor: pointer; user-select: none; } th.srt:hover { color: var(--blue)
 .cal-travel-legend i { width: 13px; height: 11px; border-radius: 3px; display: inline-block; background: var(--bluegray-bg); box-shadow: inset 0 0 0 1px rgba(46,95,138,.30); }
 .cal-cell-tasks { margin-top: 0; }
 /* dashboard level table */
+/* Monitoring "completed vs total this quarter" stacked bars */
+.mon-bars { display: flex; flex-direction: column; gap: 6px; }
+.mon-bar-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.mon-bar-lbl { width: 52px; flex: none; color: var(--muted); font-weight: 600; }
+.mon-bar-wrap { flex: 1; }
+.mon-bar-track { height: 14px; background: var(--line); border-radius: 7px; overflow: hidden; min-width: 2px; }
+.mon-bar-fill { height: 100%; background: #3a9d5d; border-radius: 7px; }
+.mon-bar-val { width: 46px; flex: none; text-align: right; font-variant-numeric: tabular-nums; color: var(--navy); font-weight: 600; }
+.mon-bar-row.total { margin-top: 2px; border-top: 1px solid var(--line-2); padding-top: 6px; }
 .lvl-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
 .lvl-table th, .lvl-table td { text-align: left; padding: 5px 8px; font-size: 13.5px; border-bottom: 1px solid var(--line-2); }
 .lvl-table th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
