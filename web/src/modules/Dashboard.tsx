@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useAim } from '../hooks/useAim';
 import { formatDateMMDDYYYY, parseLocalDate, todayLocal, getLocalQuarterRange, inRange } from '../lib/dates';
 import { isValidUrl, normUrl } from '../lib/format';
+import { isMonOverdue } from '../lib/monitoring';
+import { isTaskOverdue } from '../lib/tasks';
 import { uid } from '../lib/util';
 import { showToast } from '../lib/toast';
 import { Modal } from '../components/Modal';
@@ -46,6 +48,10 @@ export function Dashboard() {
   const onsiteChecked = level1.filter((m) => m.annualOnsite).length;
   const compChecked = level1.filter((m) => m.complianceCheck).length;
   const ratio = (n: number, d: number) => (d === 0 ? `${n} / ${d}` : `${n} / ${d} (${Math.round((n / d) * 100)}%)`);
+  const l1Overdue = level1.filter(isMonOverdue).length;
+  const l1OverduePct = l1Total ? Math.round((l1Overdue / l1Total) * 100) : 0;
+
+  const overdueTasks = (state.tasks || []).filter(isTaskOverdue).sort((a, b) => t(a.dueDate) - t(b.dueDate));
 
   const top = [...(state.prcSchedule || [])].filter((r) => r.projectedNext).sort((a, b) => t(a.projectedNext) - t(b.projectedNext))[0];
   const prcVal = (v: string) => (v && String(v).trim() && v !== '-' ? v : '-');
@@ -75,10 +81,7 @@ export function Dashboard() {
         <span className="module-meta">Live overview · {formatDateMMDDYYYY(todayLocal())}</span>
       </div>
       <div className="dash-grid">
-        <div className="panel"><h4>Most Recent 5 Trips</h4>{travelTable(recentTrips, 'No past trips on record.')}</div>
-        <div className="panel"><h4>Next Upcoming 5 Trips</h4>{travelTable(nextTrips, 'No upcoming trips scheduled.')}</div>
-
-        <div className="panel">
+        <div className="panel dash-tall">
           <h4>Monitoring Process — {quarterLabel}</h4>
           <div className="panel-sub">Completed vs due this quarter</div>
           <table className="lvl-table">
@@ -101,9 +104,27 @@ export function Dashboard() {
             </div>
           </div>
           <div className="ratio-row">
-            <div className="ratio">Annual Onsite<br /><b>{ratio(onsiteChecked, l1Total)}</b></div>
-            <div className="ratio">Compliance Check<br /><b>{ratio(compChecked, l1Total)}</b></div>
+            <div className="ratio">Annual Onsite<br /><b>{ratio(onsiteChecked, l1Total)}</b> <span className="ovr-pct">{l1OverduePct}% overdue</span></div>
+            <div className="ratio">Compliance Check<br /><b>{ratio(compChecked, l1Total)}</b> <span className="ovr-pct">{l1OverduePct}% overdue</span></div>
           </div>
+        </div>
+
+        <div className="panel">
+          <h4>Overdue Tasks</h4>
+          {overdueTasks.length ? (
+            <>
+              <div className="panel-sub" style={{ color: 'var(--red)' }}>{overdueTasks.length} task{overdueTasks.length > 1 ? 's' : ''} overdue</div>
+              <table className="mini-tbl overdue-tbl">
+                <thead><tr><th>Task</th><th>Analyst</th><th>Due</th></tr></thead>
+                <tbody>{overdueTasks.map((tk) => (
+                  <tr key={tk.id}>
+                    <td className="clip" title={tk.title}>{tk.title}</td>
+                    <td className="clip" title={tk.analysts.join(' / ')}>{tk.analysts.join(' / ')}</td>
+                    <td className="nowrap">{formatDateMMDDYYYY(tk.dueDate)}</td>
+                  </tr>))}</tbody>
+              </table>
+            </>
+          ) : <div className="all-clear">All tasks are up to date</div>}
         </div>
 
         <div className="panel">
@@ -117,6 +138,9 @@ export function Dashboard() {
             <div className="b"><div className="l">Private</div><div className="v">{top ? prcVal(top.private) : '-'}</div></div>
           </div>
         </div>
+
+        <div className="panel"><h4>Most Recent 5 Trips</h4>{travelTable(recentTrips, 'No past trips on record.')}</div>
+        <div className="panel"><h4>Next Upcoming 5 Trips</h4>{travelTable(nextTrips, 'No upcoming trips scheduled.')}</div>
 
         <div className="panel full"><UsefulLinks state={state} patch={patch} /></div>
       </div>
