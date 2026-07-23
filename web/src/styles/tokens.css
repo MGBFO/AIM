@@ -213,6 +213,7 @@ th.srt { cursor: pointer; user-select: none; } th.srt:hover { color: var(--blue)
 .dash-grid .full { grid-column: 1 / -1; }
 .dash-grid .dash-tall { grid-row: span 2; }
 .ovr-pct { color: var(--red); font-weight: 600; font-size: 12.5px; }
+.ovr-pct.ok { color: var(--green-tx); }
 .overdue-tbl td { color: var(--red); }
 .all-clear { color: var(--green-tx); font-weight: 600; font-size: 14px; padding: 10px 2px; }
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(20,40,60,.05); }

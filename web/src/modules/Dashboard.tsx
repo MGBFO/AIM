@@ -104,8 +104,8 @@ export function Dashboard() {
             </div>
           </div>
           <div className="ratio-row">
-            <div className="ratio">Annual Onsite<br /><b>{ratio(onsiteChecked, l1Total)}</b> <span className="ovr-pct">{l1OverduePct}% overdue</span></div>
-            <div className="ratio">Compliance Check<br /><b>{ratio(compChecked, l1Total)}</b> <span className="ovr-pct">{l1OverduePct}% overdue</span></div>
+            <div className="ratio">Annual Onsite<br /><b>{ratio(onsiteChecked, l1Total)}</b> <span className={'ovr-pct' + (l1OverduePct === 0 ? ' ok' : '')}>{l1OverduePct}% overdue</span></div>
+            <div className="ratio">Compliance Check<br /><b>{ratio(compChecked, l1Total)}</b> <span className={'ovr-pct' + (l1OverduePct === 0 ? ' ok' : '')}>{l1OverduePct}% overdue</span></div>
           </div>
         </div>
 
