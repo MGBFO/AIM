@@ -29,15 +29,23 @@ export function Dashboard() {
   const qr = getLocalQuarterRange();
   const lvlRows = ['Level 1', 'Level 2', 'Level 3'].map((L) => {
     const inL = active.filter((m) => m.level === L);
+    // Completed this quarter: the cycle's date (Most Recent, stamped on
+    // completion) falls in the quarter. Due: not yet completed and its
+    // Monitoring Date falls in the quarter. Total = both = cycles this quarter.
     const completed = inL.filter((m) => m.status === 'Completed' && m.mostRecent && inRange(m.mostRecent, qr)).length;
     const due = inL.filter((m) => m.status !== 'Completed' && m.monitoringDate && inRange(m.monitoringDate, qr)).length;
-    return { L, completed, due };
+    return { L, completed, due, total: completed + due };
   });
-  const onsiteDen = active.filter((m) => m.level === 'Level 1' && m.annualOnsite).length;
-  const onsiteNum = active.filter((m) => m.level === 'Level 1' && m.annualOnsite && m.status === 'Completed').length;
-  const compDen = active.filter((m) => m.level === 'Level 1' && m.complianceCheck).length;
-  const compNum = active.filter((m) => m.level === 'Level 1' && m.complianceCheck && m.status === 'Completed').length;
-  const ratio = (n: number, d: number) => (d === 0 ? `${n} / ${d} completed (-)` : `${n} / ${d} completed (${Math.round((n / d) * 100)}%)`);
+  const qTotals = lvlRows.reduce((a, r) => ({ completed: a.completed + r.completed, total: a.total + r.total }), { completed: 0, total: 0 });
+  const maxTotal = Math.max(1, ...lvlRows.map((r) => r.total));
+
+  // Annual Onsite / Compliance Check: checked boxes over the total number of
+  // Level 1 managers (both share the same denominator).
+  const level1 = active.filter((m) => m.level === 'Level 1');
+  const l1Total = level1.length;
+  const onsiteChecked = level1.filter((m) => m.annualOnsite).length;
+  const compChecked = level1.filter((m) => m.complianceCheck).length;
+  const ratio = (n: number, d: number) => (d === 0 ? `${n} / ${d}` : `${n} / ${d} (${Math.round((n / d) * 100)}%)`);
 
   const top = [...(state.prcSchedule || [])].filter((r) => r.projectedNext).sort((a, b) => t(a.projectedNext) - t(b.projectedNext))[0];
   const prcVal = (v: string) => (v && String(v).trim() && v !== '-' ? v : '-');
@@ -74,12 +82,27 @@ export function Dashboard() {
           <h4>Monitoring Process — {quarterLabel}</h4>
           <div className="panel-sub">Completed vs due this quarter</div>
           <table className="lvl-table">
-            <thead><tr><th>Monitoring Level</th><th className="num">Completed</th><th className="num">Due</th><th className="num">Completed / Due</th></tr></thead>
-            <tbody>{lvlRows.map((r) => (<tr key={r.L}><td>{r.L}</td><td className="num">{r.completed}</td><td className="num">{r.due}</td><td className="num">{r.completed} / {r.due}</td></tr>))}</tbody>
+            <thead><tr><th>Monitoring Level</th><th className="num">Completed</th><th className="num">Due</th><th className="num">Total</th></tr></thead>
+            <tbody>{lvlRows.map((r) => (<tr key={r.L}><td>{r.L}</td><td className="num">{r.completed}</td><td className="num">{r.due}</td><td className="num">{r.total}</td></tr>))}</tbody>
           </table>
+          <div className="mon-bars">
+            <div className="panel-sub" style={{ marginTop: 10 }}>Monitoring tasks this quarter — completed in green</div>
+            {lvlRows.map((r) => (
+              <div className="mon-bar-row" key={r.L}>
+                <span className="mon-bar-lbl">{r.L}</span>
+                <div className="mon-bar-wrap"><div className="mon-bar-track" style={{ width: `${(r.total / maxTotal) * 100}%` }}><div className="mon-bar-fill" style={{ width: `${r.total ? (r.completed / r.total) * 100 : 0}%` }} /></div></div>
+                <span className="mon-bar-val">{r.completed}/{r.total}</span>
+              </div>
+            ))}
+            <div className="mon-bar-row total">
+              <span className="mon-bar-lbl">Total</span>
+              <div className="mon-bar-wrap"><div className="mon-bar-track" style={{ width: '100%' }}><div className="mon-bar-fill" style={{ width: `${qTotals.total ? (qTotals.completed / qTotals.total) * 100 : 0}%` }} /></div></div>
+              <span className="mon-bar-val">{qTotals.completed}/{qTotals.total}</span>
+            </div>
+          </div>
           <div className="ratio-row">
-            <div className="ratio">Annual Onsite<br /><b>{ratio(onsiteNum, onsiteDen)}</b></div>
-            <div className="ratio">Compliance Check<br /><b>{ratio(compNum, compDen)}</b></div>
+            <div className="ratio">Annual Onsite<br /><b>{ratio(onsiteChecked, l1Total)}</b></div>
+            <div className="ratio">Compliance Check<br /><b>{ratio(compChecked, l1Total)}</b></div>
           </div>
         </div>
 
