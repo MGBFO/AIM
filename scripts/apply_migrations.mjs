@@ -92,10 +92,11 @@ try {
   }
   for (const f of pending) {
     process.stdout.write(`Applying ${f} … `);
-    await runSql(readFileSync(join(migDir, f), 'utf8'));
+    const out = await runSql(readFileSync(join(migDir, f), 'utf8'));
     const esc = f.replace(/'/g, "''");
     await runSql(`insert into public._aim_migrations(name) values('${esc}') on conflict do nothing`);
-    console.log('ok');
+    // Surface the statement result (e.g. RETURNING rows) for visibility.
+    console.log('ok', typeof out === 'string' && out.trim() && out.trim() !== '[]' ? out.slice(0, 500) : '');
   }
   console.log(`Applied ${pending.length} migration(s).`);
 } catch (e) {
