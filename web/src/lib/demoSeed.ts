@@ -48,6 +48,6 @@ export function buildDemoState(): AimState {
   return {
     trips, monitoring, prcSchedule, prcArchive,
     prcMapping: raw.prcMapping ?? EMPTY_MAPPING,
-    tasks: [], usefulLinks: [], monRollover: null, prefs: { abPeriod: 'Current Month' },
+    tasks: [], usefulLinks: [], newCalls: [], monRollover: null, prefs: { abPeriod: 'Current Month' },
   };
 }

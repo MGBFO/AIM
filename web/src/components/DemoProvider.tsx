@@ -8,17 +8,17 @@ import { completeAndRollForwardMonitoringItem } from '../lib/monitoring';
 import { buildDemoState } from '../lib/demoSeed';
 import { DEMO_STORAGE_KEY } from '../lib/config';
 import { AimContext, type AimApi } from '../hooks/useAim';
-import { type AimState, type Task, EMPTY_MAPPING } from '../lib/domain';
+import { type AimState, type Task, type NewCall, EMPTY_MAPPING } from '../lib/domain';
 
 const emptyState = (): AimState => ({
   trips: [], monitoring: [], prcSchedule: [], prcArchive: [], prcMapping: EMPTY_MAPPING,
-  tasks: [], usefulLinks: [], monRollover: null, prefs: { abPeriod: 'Current Month' },
+  tasks: [], usefulLinks: [], newCalls: [], monRollover: null, prefs: { abPeriod: 'Current Month' },
 });
 
 function loadInitial(): AimState {
   try {
     const raw = localStorage.getItem(DEMO_STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as AimState;
+    if (raw) { const s = JSON.parse(raw) as AimState; if (!s.newCalls) s.newCalls = []; return s; }
   } catch { /* ignore */ }
   return buildDemoState();
 }
@@ -127,6 +127,22 @@ export function DemoProvider({ children }: { children: ReactNode }) {
     }
   }, [patch]);
 
-  const api: AimApi = { state, ready, patch, addTask, updateTask, deleteTask, completeTask, undo, redo };
+  const recordNewCall = useCallback((taskId: string, call: { date: string | null; name: string }) => {
+    const task = stateRef.current.tasks.find((x) => x.id === taskId);
+    if (!task) return;
+    const date = call.date || null;
+    const year = date ? parseInt(date.slice(0, 4), 10) : new Date().getFullYear();
+    const now = new Date().toISOString();
+    const rec: NewCall = { id: uid('call'), taskId, name: (call.name || '').trim(), callDate: date, analysts: task.analysts, year };
+    patch((s) => {
+      s.newCalls = [...s.newCalls, rec];
+      s.tasks = s.tasks.map((x) => (x.id === taskId
+        ? { ...x, status: 'completed', completedAt: now, completedHistory: [...(x.completedHistory || []), { id: uid('h'), completedDueDate: x.dueDate, completedAt: now, completedBy: 'User', note: rec.name ? `New call: ${rec.name}` : 'New call' }] }
+        : x));
+    });
+    showToast('success', 'New call recorded.');
+  }, [patch]);
+
+  const api: AimApi = { state, ready, patch, addTask, updateTask, deleteTask, completeTask, recordNewCall, undo, redo };
   return <AimContext.Provider value={api}>{children}</AimContext.Provider>;
 }

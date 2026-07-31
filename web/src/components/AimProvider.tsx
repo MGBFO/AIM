@@ -10,9 +10,9 @@ import { completeAndRollForwardMonitoringItem } from '../lib/monitoring';
 import { initUserPrefs } from '../lib/userPrefs';
 import { AimContext, type AimApi } from '../hooks/useAim';
 import {
-  type AimState, type Task, EMPTY_MAPPING,
-  tripFromRow, monitoringFromRow, prcScheduleFromRow, prcArchiveFromRow, taskFromRow, usefulLinkFromRow,
-  tripToRow, monitoringToRow, prcScheduleToRow, prcArchiveToRow, taskToRow, usefulLinkToRow,
+  type AimState, type Task, type NewCall, EMPTY_MAPPING,
+  tripFromRow, monitoringFromRow, prcScheduleFromRow, prcArchiveFromRow, taskFromRow, usefulLinkFromRow, newCallFromRow,
+  tripToRow, monitoringToRow, prcScheduleToRow, prcArchiveToRow, taskToRow, usefulLinkToRow, newCallToRow,
 } from '../lib/domain';
 import { makeTask } from '../lib/tasks';
 
@@ -20,7 +20,7 @@ const PREFS_KEY = 'aim.prefs';
 
 /** state-slice key -> table config. */
 interface TableCfg {
-  key: 'trips' | 'monitoring' | 'prcSchedule' | 'prcArchive' | 'tasks' | 'usefulLinks';
+  key: 'trips' | 'monitoring' | 'prcSchedule' | 'prcArchive' | 'tasks' | 'usefulLinks' | 'newCalls';
   table: string;
   fromRow: (r: Record<string, unknown>) => { id: string; updatedAt?: string };
   toRow: (d: unknown) => Record<string, unknown>;
@@ -33,12 +33,13 @@ const TABLES: TableCfg[] = [
   { key: 'prcArchive', table: 'prc_archive', fromRow: prcArchiveFromRow as any, toRow: prcArchiveToRow as any },
   { key: 'tasks', table: 'tasks', fromRow: taskFromRow as any, toRow: taskToRow as any },
   { key: 'usefulLinks', table: 'useful_links', fromRow: usefulLinkFromRow as any, toRow: usefulLinkToRow as any },
+  { key: 'newCalls', table: 'new_calls', fromRow: newCallFromRow as any, toRow: newCallToRow as any },
 ];
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 const emptyState = (): AimState => ({
   trips: [], monitoring: [], prcSchedule: [], prcArchive: [], prcMapping: EMPTY_MAPPING,
-  tasks: [], usefulLinks: [], monRollover: null,
+  tasks: [], usefulLinks: [], newCalls: [], monRollover: null,
   prefs: loadPrefs(),
 });
 
@@ -283,6 +284,22 @@ export function AimProvider({ children }: { children: ReactNode }) {
     }
   }, [patch]);
 
-  const api: AimApi = { state, ready, patch, addTask, updateTask, deleteTask, completeTask, undo, redo };
+  const recordNewCall = useCallback((taskId: string, call: { date: string | null; name: string }) => {
+    const task = stateRef.current.tasks.find((x) => x.id === taskId);
+    if (!task) return;
+    const date = call.date || null;
+    const year = date ? parseInt(date.slice(0, 4), 10) : new Date().getFullYear();
+    const now = new Date().toISOString();
+    const rec: NewCall = { id: uid('call'), taskId, name: (call.name || '').trim(), callDate: date, analysts: task.analysts, year };
+    patch((s) => {
+      s.newCalls = [...s.newCalls, rec];
+      s.tasks = s.tasks.map((x) => (x.id === taskId
+        ? { ...x, status: 'completed', completedAt: now, completedHistory: [...(x.completedHistory || []), { id: uid('h'), completedDueDate: x.dueDate, completedAt: now, completedBy: 'User', note: rec.name ? `New call: ${rec.name}` : 'New call' }] }
+        : x));
+    });
+    showToast('success', 'New call recorded.');
+  }, [patch]);
+
+  const api: AimApi = { state, ready, patch, addTask, updateTask, deleteTask, completeTask, recordNewCall, undo, redo };
   return <AimContext.Provider value={api}>{children}</AimContext.Provider>;
 }

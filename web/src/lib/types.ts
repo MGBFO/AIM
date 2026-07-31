@@ -111,6 +111,14 @@ export interface UsefulLinkRow extends AuditCols {
   notes: string | null;
 }
 
+export interface NewCallRow extends AuditCols {
+  task_id: UUID | null;
+  name: string;
+  call_date: ISODate | null;
+  analysts: string[];
+  year: number;
+}
+
 export interface ActionLogRow {
   id: UUID;
   user_id: UUID;
@@ -146,6 +154,7 @@ export interface Database {
       prc_config: TableDef<PrcConfigRow>;
       tasks: TableDef<TaskRow>;
       useful_links: TableDef<UsefulLinkRow>;
+      new_calls: TableDef<NewCallRow>;
       action_log: TableDef<ActionLogRow>;
       app_config: TableDef<AppConfigRow>;
     };

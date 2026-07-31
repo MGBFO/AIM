@@ -12,7 +12,7 @@ import { uid } from './util';
 import { download } from './format';
 import type { Task } from './domain';
 
-export const LABELS = ['Question', 'Recurring', 'Ad Hoc', 'Due Diligence', 'Monitoring Calls', 'Travel'];
+export const LABELS = ['Question', 'Recurring', 'Ad Hoc', 'Due Diligence', 'Monitoring Calls', 'New Calls', 'Travel'];
 export const SOURCES = ['Manual', 'Travel Schedule', 'Monitoring Process', 'PRC', 'Other'];
 export const PERIODS = ['All Time', 'Current Month', 'Current Quarter', 'Current Year', 'Next Month', 'Next Quarter', 'Next Year'];
 
@@ -102,6 +102,7 @@ export function labelStyle(l: string): { background: string; color: string } {
     Question: ['--question-bg', '--question-tx'], Recurring: ['--green-bg', '--green-tx'],
     'Ad Hoc': ['--yellow-bg', '--yellow-tx'], 'Due Diligence': ['--teal-bg', '--teal-tx'],
     'Monitoring Calls': ['--orange-bg', '--orange-tx'], Travel: ['--bluegray-bg', '--bluegray-tx'],
+    'New Calls': ['--fuchsia-bg', '--fuchsia-tx'],
   };
   const [bg, tx] = m[l] || ['--line-2', '--muted'];
   return { background: `var(${bg})`, color: `var(${tx})` };

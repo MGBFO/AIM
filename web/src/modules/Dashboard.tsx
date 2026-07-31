@@ -8,7 +8,7 @@ import { uid } from '../lib/util';
 import { showToast } from '../lib/toast';
 import { Modal } from '../components/Modal';
 import { Confirm } from '../components/Confirm';
-import type { AimState, Trip, UsefulLink } from '../lib/domain';
+import type { AimState, Trip, UsefulLink, NewCall } from '../lib/domain';
 
 const t = (d: string | null) => parseLocalDate(d)?.getTime() ?? 0;
 
@@ -81,7 +81,7 @@ export function Dashboard() {
         <span className="module-meta">Live overview · {formatDateMMDDYYYY(todayLocal())}</span>
       </div>
       <div className="dash-grid">
-        <div className="panel dash-tall">
+        <div className="panel">
           <h4>Monitoring Process — {quarterLabel}</h4>
           <div className="panel-sub">Completed vs due this quarter</div>
           <table className="lvl-table">
@@ -127,15 +127,19 @@ export function Dashboard() {
           ) : <div className="all-clear">All tasks are up to date</div>}
         </div>
 
+        <NewCallsPanel calls={state.newCalls || []} />
+
         <div className="panel">
           <h4>Portfolio Research Committee</h4>
           <div className="panel-sub">Next meeting on schedule</div>
           <div className="prc-box">
             <div className="b"><div className="l">Next Projected Meeting</div><div className="v">{top && top.projectedNext ? formatDateMMDDYYYY(top.projectedNext) : '-'}</div></div>
+            <div className="b"><div className="l">Macro</div><div className="v">{top ? prcVal(top.macro) : '-'}</div></div>
             <div className="b"><div className="l">Presentation</div><div className="v">{top ? prcVal(top.presentation) : '-'}</div></div>
             <div className="b"><div className="l">40-Act</div><div className="v">{top ? prcVal(top.act40) : '-'}</div></div>
             <div className="b"><div className="l">Hedge Fund</div><div className="v">{top ? prcVal(top.hedgeFund) : '-'}</div></div>
             <div className="b"><div className="l">Private</div><div className="v">{top ? prcVal(top.private) : '-'}</div></div>
+            <div className="b"><div className="l">New Funds/Projects</div><div className="v">{top ? prcVal(top.newFunds) : '-'}</div></div>
           </div>
         </div>
 
@@ -145,6 +149,56 @@ export function Dashboard() {
         <div className="panel full"><UsefulLinks state={state} patch={patch} /></div>
       </div>
     </div>
+  );
+}
+
+const NC_ANALYSTS = ['Mike Gregory', 'Jack Griffin', 'Harrison Fritz'];
+
+function NewCallsPanel({ calls }: { calls: NewCall[] }) {
+  const currentYear = todayLocal().getFullYear();
+  const years = [...new Set([currentYear, ...calls.map((c) => c.year)])].sort((a, b) => b - a);
+  const [year, setYear] = useState(currentYear);
+  const [detail, setDetail] = useState<string | null>(null);
+  const yearCalls = calls.filter((c) => c.year === year);
+  const countFor = (a: string) => yearCalls.filter((c) => c.analysts.includes(a)).length;
+
+  return (
+    <div className="panel">
+      <div className="nc-ribbon">
+        <h4>New Calls</h4>
+        <span className="nc-total">{yearCalls.length}</span>
+        <select className="inp-sm nc-year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
+          {years.map((y) => <option key={y} value={y}>{y}</option>)}
+        </select>
+      </div>
+      <table className="lvl-table">
+        <thead><tr><th>Analyst</th><th className="num">New Calls</th></tr></thead>
+        <tbody>{NC_ANALYSTS.map((a) => {
+          const n = countFor(a);
+          return (
+            <tr key={a}>
+              <td>{n > 0 ? <span className="nc-name" onClick={() => setDetail(a)}>{a}</span> : a}</td>
+              <td className="num">{n}</td>
+            </tr>
+          );
+        })}</tbody>
+      </table>
+      {detail && <NewCallsDetail analyst={detail} year={year} calls={yearCalls.filter((c) => c.analysts.includes(detail))} onClose={() => setDetail(null)} />}
+    </div>
+  );
+}
+
+function NewCallsDetail({ analyst, year, calls, onClose }: { analyst: string; year: number; calls: NewCall[]; onClose: () => void }) {
+  const rows = [...calls].sort((a, b) => t(b.callDate) - t(a.callDate));
+  return (
+    <Modal title={`${analyst} — New Calls ${year}`} onClose={onClose} foot={<button className="btn gold" onClick={onClose}>Close</button>}>
+      <table className="mini-tbl">
+        <thead><tr><th>Date</th><th>Name</th></tr></thead>
+        <tbody>{rows.length ? rows.map((c) => (
+          <tr key={c.id}><td className="nowrap">{formatDateMMDDYYYY(c.callDate)}</td><td>{c.name || '-'}</td></tr>
+        )) : <tr><td colSpan={2} style={{ textAlign: 'center', color: 'var(--muted)', padding: '12px' }}>No calls.</td></tr>}</tbody>
+      </table>
+    </Modal>
   );
 }
 
