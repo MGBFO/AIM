@@ -133,13 +133,17 @@ export function Dashboard() {
           <h4>Portfolio Research Committee</h4>
           <div className="panel-sub">Next meeting on schedule</div>
           <div className="prc-box">
-            <div className="b"><div className="l">Next Projected Meeting</div><div className="v">{top && top.projectedNext ? formatDateMMDDYYYY(top.projectedNext) : '-'}</div></div>
-            <div className="b"><div className="l">Macro</div><div className="v">{top ? prcVal(top.macro) : '-'}</div></div>
-            <div className="b"><div className="l">Presentation</div><div className="v">{top ? prcVal(top.presentation) : '-'}</div></div>
-            <div className="b"><div className="l">40-Act</div><div className="v">{top ? prcVal(top.act40) : '-'}</div></div>
-            <div className="b"><div className="l">Hedge Fund</div><div className="v">{top ? prcVal(top.hedgeFund) : '-'}</div></div>
-            <div className="b"><div className="l">Private</div><div className="v">{top ? prcVal(top.private) : '-'}</div></div>
-            <div className="b"><div className="l">New Funds/Projects</div><div className="v">{top ? prcVal(top.newFunds) : '-'}</div></div>
+            <div className="prc-row prc-top">
+              <div className="b"><div className="l">Next Projected Meeting</div><div className="v">{top && top.projectedNext ? formatDateMMDDYYYY(top.projectedNext) : '-'}</div></div>
+              <div className="b"><div className="l">Macro</div><div className="v">{top ? prcVal(top.macro) : '-'}</div></div>
+              <div className="b"><div className="l">Presentation</div><div className="v">{top ? prcVal(top.presentation) : '-'}</div></div>
+            </div>
+            <div className="prc-row prc-bottom">
+              <div className="b"><div className="l">40-Act</div><div className="v">{top ? prcVal(top.act40) : '-'}</div></div>
+              <div className="b"><div className="l">Hedge Fund</div><div className="v">{top ? prcVal(top.hedgeFund) : '-'}</div></div>
+              <div className="b"><div className="l">Private</div><div className="v">{top ? prcVal(top.private) : '-'}</div></div>
+              <div className="b"><div className="l">New Funds/Projects</div><div className="v">{top ? prcVal(top.newFunds) : '-'}</div></div>
+            </div>
           </div>
         </div>
 
@@ -161,6 +165,8 @@ function NewCallsPanel({ calls }: { calls: NewCall[] }) {
   const [detail, setDetail] = useState<string | null>(null);
   const yearCalls = calls.filter((c) => c.year === year);
   const countFor = (a: string) => yearCalls.filter((c) => c.analysts.includes(a)).length;
+  const counts = NC_ANALYSTS.map((a) => ({ a, n: countFor(a) }));
+  const maxN = Math.max(0, ...counts.map((c) => c.n));
 
   return (
     <div className="panel">
@@ -171,17 +177,14 @@ function NewCallsPanel({ calls }: { calls: NewCall[] }) {
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
       </div>
-      <table className="lvl-table">
-        <thead><tr><th>Analyst</th><th className="num">New Calls</th></tr></thead>
-        <tbody>{NC_ANALYSTS.map((a) => {
-          const n = countFor(a);
-          return (
-            <tr key={a}>
-              <td>{n > 0 ? <span className="nc-name" onClick={() => setDetail(a)}>{a}</span> : a}</td>
-              <td className="num">{n}</td>
-            </tr>
-          );
-        })}</tbody>
+      <table className="nc-table">
+        <thead><tr><th className="analyst">Analyst</th><th className="num">New Calls</th></tr></thead>
+        <tbody>{counts.map(({ a, n }) => (
+          <tr key={a}>
+            <td className="analyst">{n > 0 ? <span className="nc-name" onClick={() => setDetail(a)}>{a}</span> : a}{n === maxN && maxN > 0 ? ' 🏆' : ''}</td>
+            <td className="num">{n}</td>
+          </tr>
+        ))}</tbody>
       </table>
       {detail && <NewCallsDetail analyst={detail} year={year} calls={yearCalls.filter((c) => c.analysts.includes(detail))} onClose={() => setDetail(null)} />}
     </div>

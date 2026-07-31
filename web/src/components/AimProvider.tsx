@@ -250,7 +250,9 @@ export function AimProvider({ children }: { children: ReactNode }) {
   }, [patch]);
 
   const deleteTask = useCallback((id: string) => {
-    patch((s) => { s.tasks = s.tasks.filter((t) => t.id !== id); });
+    // Also drop any New Call records this task produced, so the Dashboard
+    // New Calls total + per-analyst counts subtract accordingly.
+    patch((s) => { s.tasks = s.tasks.filter((t) => t.id !== id); s.newCalls = s.newCalls.filter((c) => c.taskId !== id); });
   }, [patch]);
 
   const completeTask = useCallback((id: string) => {
