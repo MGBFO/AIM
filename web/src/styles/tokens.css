@@ -224,6 +224,11 @@ th.srt { cursor: pointer; user-select: none; } th.srt:hover { color: var(--blue)
 .nc-total { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; color: var(--fuchsia-tx); }
 .nc-year { margin-left: auto; width: 84px; flex: none; }
 .nc-name { color: var(--blue); font-weight: 600; cursor: pointer; }
+.nc-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.nc-table th, .nc-table td { padding: 5px 8px; font-size: 13.5px; border-bottom: 1px solid var(--line-2); }
+.nc-table th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+.nc-table .analyst { text-align: left; }
+.nc-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(20,40,60,.05); }
 .panel h4 { margin: 0 0 8px; font-family: 'Fraunces', serif; font-size: 16px; color: var(--navy); font-weight: 600; }
 .panel .panel-sub { font-size: 12px; color: var(--muted); margin: -4px 0 8px; }
@@ -231,7 +236,10 @@ th.srt { cursor: pointer; user-select: none; } th.srt:hover { color: var(--blue)
 .mini-tbl th, .mini-tbl td { text-align: left; padding: 5px 8px; font-size: 13.5px; border-bottom: 1px solid var(--line-2); white-space: nowrap; }
 .mini-tbl th { color: var(--muted); font-weight: 600; font-size: 12px; }
 .mini-tbl td.clip { max-width: 150px; overflow: hidden; text-overflow: ellipsis; }
-.prc-box { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
+.prc-box { display: flex; flex-direction: column; gap: 10px; }
+.prc-row { display: grid; gap: 10px; }
+.prc-row.prc-top { grid-template-columns: auto 1fr 1fr; }
+.prc-row.prc-bottom { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .prc-box .b { background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; }
 .prc-box .b .l { font-size: 11.5px; color: var(--muted); font-weight: 600; }
 .prc-box .b .v { font-size: 14.5px; color: var(--navy); font-weight: 600; margin-top: 3px; word-break: break-word; }
