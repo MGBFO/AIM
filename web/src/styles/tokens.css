@@ -13,6 +13,7 @@
   --orange-bg: rgba(255,152,0,.18); --orange-tx: #a35e00;
   --bluegray-bg: rgba(46,95,138,.14); --bluegray-tx: #2b577d;
   --question-bg: rgba(123,79,168,.14); --question-tx: #6a3f96;
+  --fuchsia-bg: rgba(200,40,150,.15); --fuchsia-tx: #b02a86;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; height: 100%; }
@@ -110,6 +111,7 @@ td.ovr, .ovr { color: var(--red); font-weight: 600; }
 .lbl-Ad\ Hoc { background: var(--yellow-bg); color: var(--yellow-tx); }
 .lbl-Due\ Diligence { background: var(--teal-bg); color: var(--teal-tx); }
 .lbl-Monitoring\ Calls { background: var(--orange-bg); color: var(--orange-tx); }
+.lbl-New\ Calls { background: var(--fuchsia-bg); color: var(--fuchsia-tx); }
 .lbl-Travel { background: var(--bluegray-bg); color: var(--bluegray-tx); }
 .chk { width: 16px; height: 16px; cursor: pointer; accent-color: var(--blue); }
 
@@ -216,6 +218,12 @@ th.srt { cursor: pointer; user-select: none; } th.srt:hover { color: var(--blue)
 .ovr-pct.ok { color: var(--green-tx); }
 .overdue-tbl td { color: var(--red); }
 .all-clear { color: var(--green-tx); font-weight: 600; font-size: 14px; padding: 10px 2px; }
+/* New Calls panel */
+.nc-ribbon { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.nc-ribbon h4 { margin: 0; }
+.nc-total { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; color: var(--fuchsia-tx); }
+.nc-year { margin-left: auto; width: 84px; flex: none; }
+.nc-name { color: var(--blue); font-weight: 600; cursor: pointer; }
 .panel { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 3px rgba(20,40,60,.05); }
 .panel h4 { margin: 0 0 8px; font-family: 'Fraunces', serif; font-size: 16px; color: var(--navy); font-weight: 600; }
 .panel .panel-sub { font-size: 12px; color: var(--muted); margin: -4px 0 8px; }

@@ -6,7 +6,7 @@
    ========================================================================== */
 import type { ISODate } from './dates';
 import type {
-  TripRow, MonitoringRow, PrcScheduleRow, PrcArchiveRow, TaskRow, UsefulLinkRow,
+  TripRow, MonitoringRow, PrcScheduleRow, PrcArchiveRow, TaskRow, UsefulLinkRow, NewCallRow,
   MonitoringLevel, TripSection, TaskStatus,
 } from './types';
 
@@ -107,6 +107,16 @@ export interface UsefulLink {
   updatedAt?: string;
 }
 
+export interface NewCall {
+  id: string;
+  taskId: string | null;
+  name: string;
+  callDate: ISODate | null;
+  analysts: string[];
+  year: number;
+  updatedAt?: string;
+}
+
 export interface EntityGlobal {
   name: string;
   flex: boolean;
@@ -131,6 +141,7 @@ export interface AimState {
   prcMapping: PrcMapping;
   tasks: Task[];
   usefulLinks: UsefulLink[];
+  newCalls: NewCall[];
   monRollover: ISODate | null;
   prefs: { abPeriod: string };
 }
@@ -176,6 +187,10 @@ export const usefulLinkFromRow = (r: UsefulLinkRow): UsefulLink => ({
   id: r.id, name: r.name, login: r.login ?? '', password: r.password ?? '', url: r.url ?? '',
   notes: r.notes ?? '', updatedAt: r.updated_at,
 });
+export const newCallFromRow = (r: NewCallRow): NewCall => ({
+  id: r.id, taskId: r.task_id, name: r.name ?? '', callDate: r.call_date, analysts: r.analysts ?? [],
+  year: r.year, updatedAt: r.updated_at,
+});
 
 /* ─── mappers: domain (camel) -> Row insert/update (snake) ────────────────── */
 export const tripToRow = (t: Trip) => ({
@@ -201,6 +216,9 @@ export const prcArchiveToRow = (r: PrcArchive) => ({
 });
 export const usefulLinkToRow = (l: UsefulLink) => ({
   id: l.id, name: l.name, login: l.login, password: l.password, url: l.url, notes: l.notes,
+});
+export const newCallToRow = (c: NewCall) => ({
+  id: c.id, task_id: c.taskId, name: c.name, call_date: c.callDate, analysts: c.analysts, year: c.year,
 });
 export const taskToRow = (t: Task) => ({
   id: t.id, title: t.title, description: t.description, analysts: t.analysts, label: t.label,

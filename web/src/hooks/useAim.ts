@@ -10,6 +10,8 @@ export interface AimApi {
   updateTask: (id: string, changes: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   completeTask: (id: string) => void;
+  /** Record a New Call (from a "New Calls" task's completion popup) and complete the task. */
+  recordNewCall: (taskId: string, call: { date: string | null; name: string }) => void;
   undo: () => void;
   redo: () => void;
 }

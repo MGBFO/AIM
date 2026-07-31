@@ -10,7 +10,7 @@ import { TaskEditor } from '../components/TaskEditor';
 import type { Task, Trip } from '../lib/domain';
 
 type ConfirmState = { title: string; message: string; confirmLabel: string; onConfirm: () => void } | null;
-const CAL_LABELS = ['Question', 'Recurring', 'Ad Hoc', 'Due Diligence', 'Monitoring Calls', 'Travel'];
+const CAL_LABELS = ['Question', 'Recurring', 'Ad Hoc', 'Due Diligence', 'Monitoring Calls', 'New Calls', 'Travel'];
 
 function travelBarLabel(t: Trip): string {
   const city = (t.city || '').trim();

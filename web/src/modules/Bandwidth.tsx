@@ -5,8 +5,10 @@ import { applyColSort, nextSortDir, sortCaret, type SortState } from '../lib/sor
 import { APPROVED_ANALYSTS } from '../lib/roster';
 import { showToast } from '../lib/toast';
 import { playCompletion, primeCompletionSound } from '../lib/sound';
+import { toISO, todayLocal } from '../lib/dates';
 import { DateCell } from '../components/DateCell';
 import { Confirm } from '../components/Confirm';
+import { Modal } from '../components/Modal';
 import { TaskEditor, type EditableTask } from '../components/TaskEditor';
 import {
   LABELS, SOURCES, PERIODS, isTaskOverdue, isTaskDueThisWeek, isCompletedThisMonth,
@@ -18,7 +20,7 @@ import type { Task } from '../lib/domain';
 type ConfirmState = { title: string; message: string; confirmLabel: string; onConfirm: () => void } | null;
 
 export function Bandwidth() {
-  const { state, patch, addTask, updateTask, deleteTask, completeTask } = useAim();
+  const { state, patch, addTask, updateTask, deleteTask, completeTask, recordNewCall } = useAim();
   const { initial: savedView, saveView, setSaveView, save } = useSavedView('bandwidth');
   const [fAnalyst, setFAnalyst] = useState(savedView.on ? String(savedView.v.fAnalyst ?? 'All Analysts') : 'All Analysts');
   const [fLabel, setFLabel] = useState(savedView.on ? String(savedView.v.fLabel ?? 'All Labels') : 'All Labels');
@@ -27,6 +29,7 @@ export function Bandwidth() {
   const [period, setPeriod] = useState(savedView.on && savedView.v.period ? String(savedView.v.period) : (state.prefs.abPeriod || 'Current Month'));
   const [search, setSearch] = useState(savedView.on ? String(savedView.v.search ?? '') : '');
   const [edit, setEdit] = useState<EditableTask | null>(null);
+  const [callFor, setCallFor] = useState<Task | null>(null);
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [sort, setSort] = useState<SortState>({ key: null, dir: null });
   const lastDel = useRef<Task | null>(null);
@@ -155,7 +158,7 @@ export function Bandwidth() {
                     <td className="nowrap">{t.sourceModule}</td>
                     <td className="nowrap">{done ? <span className="pill green">Completed</span> : isOvr ? <span className="pill red">Overdue</span> : <span className="pill gray">Open</span>}</td>
                     <td className="nowrap" onClick={(e) => e.stopPropagation()}>
-                      {!done && <button className="btn sm blue" onClick={() => { completeTask(t.id); playCompletion(); }}>Complete</button>}
+                      {!done && <button className="btn sm blue" onClick={() => { if (t.label === 'New Calls') { setCallFor(t); } else { completeTask(t.id); playCompletion(); } }}>Complete</button>}
                       <button className="btn sm ghost" style={{ marginLeft: '5px' }} onClick={() => onDelete(t)}>Delete</button>
                     </td>
                   </tr>); })}</tbody>
@@ -167,6 +170,27 @@ export function Bandwidth() {
       {edit && <TaskEditor task={edit} onClose={() => setEdit(null)}
         onSave={(t) => { if (edit._new) { const r = addTask(t); if (r) setEdit(null); } else { if (!t.dueDate) { showToast('error', 'Add a Due Date before saving this task.'); return; } updateTask(edit.id!, t); setEdit(null); showToast('success', 'Task saved.'); } }} />}
       {confirm && <Confirm {...confirm} onCancel={() => setConfirm(null)} />}
+      {callFor && <NewCallPopup onClose={() => setCallFor(null)} onSave={(date, name) => { const id = callFor.id; setCallFor(null); recordNewCall(id, { date, name }); playCompletion(); }} />}
     </div>
+  );
+}
+
+/** Completion popup for a "New Calls" task — capture Date + Name, then complete. */
+function NewCallPopup({ onClose, onSave }: { onClose: () => void; onSave: (date: string, name: string) => void }) {
+  const [date, setDate] = useState(toISO(todayLocal()) || '');
+  const [name, setName] = useState('');
+  const submit = () => {
+    if (!date) { showToast('error', 'Pick a date for the call.'); return; }
+    if (!name.trim()) { showToast('error', 'Enter a name for the call.'); return; }
+    onSave(date, name.trim());
+  };
+  return (
+    <Modal title="Record New Call" onClose={onClose}
+      foot={<><button className="btn ghost" onClick={onClose}>Cancel</button><button className="btn gold" onClick={submit}>Save</button></>}>
+      <div className="grid2">
+        <div className="field"><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
+        <div className="field"><label>Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></div>
+      </div>
+    </Modal>
   );
 }

@@ -105,10 +105,12 @@ export function PRC() {
       <div className="module-head"><span className="module-title">Portfolio Research Committee</span></div>
       <div className="cards">
         <div className="card accent-gold"><div className="label">Next Projected Meeting</div><div className="value sm">{top && top.projectedNext ? formatDateMMDDYYYY(top.projectedNext) : '-'}</div></div>
+        <div className="card"><div className="label">Macro</div><div className="value sm" style={{ fontSize: '14px' }}>{top && top.macro ? top.macro : '-'}</div></div>
         <div className="card accent-blue"><div className="label">Presentation</div><div className="value sm" style={{ fontSize: '15px' }}>{top ? top.presentation : '-'}</div></div>
         <div className="card"><div className="label">40-Act</div><div className="value sm" style={{ fontSize: '14px' }}>{top && top.act40 ? top.act40 : '-'}</div></div>
         <div className="card"><div className="label">Hedge Fund</div><div className="value sm" style={{ fontSize: '14px' }}>{top && top.hedgeFund ? top.hedgeFund : '-'}</div></div>
         <div className="card"><div className="label">Private</div><div className="value sm" style={{ fontSize: '14px' }}>{top && top.private ? top.private : '-'}</div></div>
+        <div className="card"><div className="label">New Funds/Projects</div><div className="value sm" style={{ fontSize: '14px' }}>{top && top.newFunds ? top.newFunds : '-'}</div></div>
       </div>
 
       <div className="section-bar"><h3>Meeting Schedule</h3></div>
