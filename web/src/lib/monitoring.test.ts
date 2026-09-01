@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toISO, todayLocal, addDaysISO } from './dates';
-import { parseLevel, levelDays, monStatus, isMonOverdue, rolloverLabel, excelToISO, parseMonitoringSheet, completeAndRollForwardMonitoringItem } from './monitoring';
+import { parseLevel, levelDays, monStatus, isMonOverdue, rolloverLabel, monitoringPeriodEndISO, excelToISO, parseMonitoringSheet, completeAndRollForwardMonitoringItem } from './monitoring';
 import type { Monitoring } from './domain';
 
 const mon = (p: Partial<Monitoring>): Monitoring => ({
@@ -42,6 +42,24 @@ describe('completeAndRollForwardMonitoringItem', () => {
   it('uses the level-appropriate Target (L3 = 365)', () => {
     const r = completeAndRollForwardMonitoringItem(mon({ level: 'Level 3', monitoringDate: '2026-01-01', targetMonitoringDays: 365 }), null);
     expect(r.monitoringDate).toBe(addDaysISO('2026-01-01', 365));
+  });
+});
+
+describe('monitoringPeriodEndISO', () => {
+  it('returns the next rollover boundary per level (mid-quarter)', () => {
+    const aug = new Date(2026, 7, 15); // Aug 15, 2026
+    expect(monitoringPeriodEndISO('Level 1', aug)).toBe('2026-10-01'); // next quarter start
+    expect(monitoringPeriodEndISO('Level 2', aug)).toBe('2027-01-01'); // next Jan/Jul boundary
+    expect(monitoringPeriodEndISO('Level 3', aug)).toBe('2027-01-01'); // next Jan 1
+  });
+  it('rolls to the following year when past the last boundary', () => {
+    const nov = new Date(2026, 10, 3); // Nov 3, 2026
+    expect(monitoringPeriodEndISO('Level 1', nov)).toBe('2027-01-01');
+  });
+  it('uses the strictly-next boundary when today is on a boundary', () => {
+    const jul1 = new Date(2026, 6, 1); // Jul 1, 2026
+    expect(monitoringPeriodEndISO('Level 1', jul1)).toBe('2026-10-01');
+    expect(monitoringPeriodEndISO('Level 2', jul1)).toBe('2027-01-01');
   });
 });
 

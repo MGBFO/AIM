@@ -11,7 +11,7 @@ export type Timestamptz = string;
 export type Role = 'admin' | 'analyst';
 export type TripSection = 'upcoming' | 'potential' | 'archived';
 export type MonitoringLevel = 'Level 1' | 'Level 2' | 'Level 3';
-export type TaskStatus = 'open' | 'completed';
+export type TaskStatus = 'open' | 'in_process' | 'completed';
 export type ActionOp = 'insert' | 'update' | 'delete';
 
 interface AuditCols {

@@ -46,7 +46,7 @@ export function TaskEditor({ task, onClose, onSave, onDelete }: {
         <div className="field"><label>Source Module</label><select value={t.sourceModule} onChange={(e) => f('sourceModule', e.target.value)}>{SOURCES.map((s) => <option key={s}>{s}</option>)}</select></div>
         {task._new
           ? <div className="field"><label>Created By</label><input type="text" value={t.createdBy || 'User'} onChange={(e) => f('createdBy', e.target.value)} /></div>
-          : <div className="field"><label>Status</label><select value={t.status} onChange={(e) => f('status', e.target.value)}><option value="open">open</option><option value="completed">completed</option></select></div>}
+          : <div className="field"><label>Status</label><select value={t.status} onChange={(e) => f('status', e.target.value)}><option value="open">open</option><option value="in_process">in process</option><option value="completed">completed</option></select></div>}
       </div>
       {!task._new && (
         <div className="mini" style={{ borderTop: '1px solid var(--line)', paddingTop: '8px' }}>

@@ -41,6 +41,24 @@ export function completeAndRollForwardMonitoringItem(m: Monitoring, rolloverBase
   return { ...m, mostRecent: m.monitoringDate, monitoringDate: nextDate, status: 'Completed' };
 }
 
+/**
+ * The date the current monitoring period closes for a level — i.e. the next
+ * rollover boundary. Matches the Rollover schedule: Level 1 rolls quarterly
+ * (Jan/Apr/Jul/Oct 1), Level 2 semiannually (Jan/Jul 1), Level 3 annually
+ * (Jan 1). Returned as local ISO yyyy-mm-dd; the boundary strictly after today.
+ */
+export function monitoringPeriodEndISO(level: string, today: Date = todayLocal()): string {
+  const months = level === 'Level 1' ? [0, 3, 6, 9] : level === 'Level 2' ? [0, 6] : [0];
+  const t0 = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const y = today.getFullYear();
+  const candidates: number[] = [];
+  for (const yy of [y, y + 1]) for (const m of months) candidates.push(new Date(yy, m, 1).getTime());
+  candidates.sort((a, b) => a - b);
+  const next = candidates.find((c) => c > t0)!;
+  const d = new Date(next);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function rolloverLabel(iso: string | null): string {
   if (!iso) return 'Not Set';
   const d = parseLocalDate(iso)!;

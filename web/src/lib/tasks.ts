@@ -36,11 +36,12 @@ export function makeTask(p: Partial<Task>): Task {
 }
 
 export function isTaskOverdue(t: Task): boolean {
-  if (t.status !== 'open' || !t.dueDate) return false;
+  // Any not-yet-completed task (open or in process) can be overdue.
+  if (t.status === 'completed' || !t.dueDate) return false;
   return parseLocalDate(t.dueDate)! < todayLocal();
 }
 export function isTaskDueThisWeek(t: Task): boolean {
-  if (t.status !== 'open' || !t.dueDate) return false;
+  if (t.status === 'completed' || !t.dueDate) return false;
   const d = parseLocalDate(t.dueDate)!;
   const tdy = todayLocal();
   const end = new Date(tdy);
@@ -54,7 +55,7 @@ export function isCompletedThisMonth(t: Task): boolean {
   return false;
 }
 export function isOpenQuestionTask(t: Task): boolean {
-  return t.status === 'open' && t.label === 'Question';
+  return t.status !== 'completed' && t.label === 'Question';
 }
 export function taskMatchesPeriodFilter(t: Task, period: string): boolean {
   if (period === 'All Time') return true;
