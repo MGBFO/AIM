@@ -226,7 +226,7 @@ th.srt { cursor: pointer; user-select: none; } th.srt:hover { color: var(--blue)
 .nc-ribbon h4 { margin: 0; }
 .nc-total { font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; color: var(--fuchsia-tx); }
 .nc-new { margin-left: auto; }
-.nc-year { margin-left: auto; width: 84px; flex: none; }
+.nc-year { width: 84px; flex: none; }
 .nc-name { color: var(--blue); font-weight: 600; cursor: pointer; }
 .nc-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
 .nc-table th, .nc-table td { padding: 5px 8px; font-size: 13.5px; border-bottom: 1px solid var(--line-2); }
