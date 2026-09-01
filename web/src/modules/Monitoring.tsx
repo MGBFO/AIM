@@ -7,7 +7,7 @@ import { APPROVED_ANALYSTS } from '../lib/roster';
 import { uid } from '../lib/util';
 import { showToast } from '../lib/toast';
 import {
-  levelDays, monStatus, isMonOverdue, rolloverLabel, exportMonitoring, exportMonitoringXlsx,
+  levelDays, monStatus, isMonOverdue, rolloverLabel, monitoringPeriodEndISO, exportMonitoring, exportMonitoringXlsx,
   readMonitoringWorkbook, parseMonitoringSheet, parseCsv, completeAndRollForwardMonitoringItem, type ImportDiag,
 } from '../lib/monitoring';
 import { DateCell } from '../components/DateCell';
@@ -169,7 +169,7 @@ export function Monitoring() {
         <div className="card accent-gold"><div className="label">Total Active Funds</div><div className="value">{active.length}</div></div>
         <div className="card accent-red"><div className="label">Overdue Monitoring Dates</div><div className={'value' + (overdue ? ' red' : '')}>{overdue}</div></div>
         <div className="card accent-blue"><div className="label">Due This Month</div><div className="value">{dueMonth}</div></div>
-        {LEVELS.map((L) => { const [c, tot] = byLevel(L); return (<div className="card" key={L}><div className="label">{L}</div><div className="value sm">{c} / {tot}</div></div>); })}
+        {LEVELS.map((L) => { const [c, tot] = byLevel(L); return (<div className="card" key={L}><div className="label">{L}</div><div className="value sm">{c} / {tot}</div><div className="mon-period">Period ends {formatDateMMDDYYYY(monitoringPeriodEndISO(L))}</div></div>); })}
       </div>
 
       <div className="ribbon">
@@ -194,8 +194,8 @@ export function Monitoring() {
             onChange={(e) => { const on = e.target.checked; setSel((prev) => { const n = new Set(prev); rows.forEach((r) => { if (on) n.add(r.id); else n.delete(r.id); }); return n; }); }} /></th>
           {COLS.map((c) => { const k = MON_KEY[c]; return <th key={c} className="srt" onClick={() => setSort((s) => nextSortDir(s, k))}>{c} <span className="car">{sortCaret(sort, k)}</span></th>; })}
         </tr></thead>
-        <tbody>{rows.length ? rows.map((m) => { const st = monStatus(m); const ovr = st === 'Overdue'; const l1 = m.level === 'Level 1';
-          return (<tr key={m.id} className={(sel.has(m.id) ? 'sel' : '') + (ovr ? ' mon-ovr' : '')}>
+        <tbody>{rows.length ? rows.map((m) => { const st = monStatus(m); const ovr = st === 'Overdue'; const done = st === 'Completed'; const l1 = m.level === 'Level 1';
+          return (<tr key={m.id} className={(sel.has(m.id) ? 'sel' : '') + (ovr ? ' mon-ovr' : '') + (done ? ' mon-done' : '')}>
             <td><input type="checkbox" className="chk" checked={sel.has(m.id)} onChange={() => toggle(m.id)} /></td>
             <td style={{ cursor: 'pointer', fontWeight: 600 }} onClick={() => setEditRec(m)} className="clip" title={m.fund}>{m.fund}</td>
             <td><select className="inp-sm" value={m.analyst} onChange={(e) => editField(m, 'analyst', e.target.value)}>{APPROVED_ANALYSTS.map((a) => <option key={a}>{a}</option>)}</select></td>

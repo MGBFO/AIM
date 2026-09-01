@@ -5,10 +5,9 @@ import { applyColSort, nextSortDir, sortCaret, type SortState } from '../lib/sor
 import { APPROVED_ANALYSTS } from '../lib/roster';
 import { showToast } from '../lib/toast';
 import { playCompletion, primeCompletionSound } from '../lib/sound';
-import { toISO, todayLocal } from '../lib/dates';
 import { DateCell } from '../components/DateCell';
 import { Confirm } from '../components/Confirm';
-import { Modal } from '../components/Modal';
+import { NewCallPopup } from '../components/NewCallPopup';
 import { TaskEditor, type EditableTask } from '../components/TaskEditor';
 import {
   LABELS, SOURCES, PERIODS, isTaskOverdue, isTaskDueThisWeek, isCompletedThisMonth,
@@ -33,7 +32,7 @@ export function Bandwidth() {
   const [confirm, setConfirm] = useState<ConfirmState>(null);
   const [sort, setSort] = useState<SortState>({ key: null, dir: null });
   const lastDel = useRef<Task | null>(null);
-  const bwGet = (t: Task, k: string) => (k === '__status' ? (t.status === 'completed' ? 'Completed' : isTaskOverdue(t) ? 'Overdue' : 'Open') : t[k as keyof Task]);
+  const bwGet = (t: Task, k: string) => (k === '__status' ? (t.status === 'completed' ? 'Completed' : isTaskOverdue(t) ? 'Overdue' : t.status === 'in_process' ? 'In Process' : 'Open') : t[k as keyof Task]);
 
   useEffect(() => {
     patch((s) => { s.prefs = { ...s.prefs, abPeriod: period }; });
@@ -60,7 +59,7 @@ export function Bandwidth() {
   const forAnalyst = (a: string) => filtered.filter((t) => t.analysts.includes(a));
 
   const globalSet = fAnalyst === 'All Analysts' ? filtered : filtered.filter((t) => t.analysts.includes(fAnalyst));
-  const cOpen = globalSet.filter((t) => t.status === 'open').length;
+  const cOpen = globalSet.filter((t) => t.status !== 'completed').length;
   const cOverdue = globalSet.filter(isTaskOverdue).length;
   const cWeek = globalSet.filter(isTaskDueThisWeek).length;
   const cMonth = globalSet.filter(isCompletedThisMonth).length;
@@ -126,7 +125,7 @@ export function Bandwidth() {
       {!anyTasks ? <div className="empty">No tasks match the current filters.</div> :
         visibleAnalysts.map((a) => {
           const tasks = applyColSort(sortTasksForAnalystSection(forAnalyst(a)), sort, bwGet);
-          const open = tasks.filter((t) => t.status === 'open').length;
+          const open = tasks.filter((t) => t.status !== 'completed').length;
           const ovr = tasks.filter(isTaskOverdue).length;
           const wk = tasks.filter(isTaskDueThisWeek).length;
           const mo = tasks.filter(isCompletedThisMonth).length;
@@ -156,7 +155,7 @@ export function Bandwidth() {
                     <td><span className="lbl" style={labelStyle(t.label)}>{t.label}</span></td>
                     <td className={'nowrap' + (isOvr ? ' ovr' : '')} onClick={(e) => e.stopPropagation()}><DateCell value={t.dueDate} onCommit={(v) => { if (!v) { showToast('error', 'Due date is required.'); return; } updateTask(t.id, { dueDate: v }); }} /></td>
                     <td className="nowrap">{t.sourceModule}</td>
-                    <td className="nowrap">{done ? <span className="pill green">Completed</span> : isOvr ? <span className="pill red">Overdue</span> : <span className="pill gray">Open</span>}</td>
+                    <td className="nowrap">{done ? <span className="pill green">Completed</span> : isOvr ? <span className="pill red">Overdue</span> : t.status === 'in_process' ? <span className="pill blue">In Process</span> : <span className="pill gray">Open</span>}</td>
                     <td className="nowrap" onClick={(e) => e.stopPropagation()}>
                       {!done && <button className="btn sm blue" onClick={() => { if (t.label === 'New Calls') { setCallFor(t); } else { completeTask(t.id); playCompletion(); } }}>Complete</button>}
                       <button className="btn sm ghost" style={{ marginLeft: '5px' }} onClick={() => onDelete(t)}>Delete</button>
@@ -170,27 +169,7 @@ export function Bandwidth() {
       {edit && <TaskEditor task={edit} onClose={() => setEdit(null)}
         onSave={(t) => { if (edit._new) { const r = addTask(t); if (r) setEdit(null); } else { if (!t.dueDate) { showToast('error', 'Add a Due Date before saving this task.'); return; } updateTask(edit.id!, t); setEdit(null); showToast('success', 'Task saved.'); } }} />}
       {confirm && <Confirm {...confirm} onCancel={() => setConfirm(null)} />}
-      {callFor && <NewCallPopup onClose={() => setCallFor(null)} onSave={(date, name) => { const id = callFor.id; setCallFor(null); recordNewCall(id, { date, name }); playCompletion(); }} />}
+      {callFor && <NewCallPopup onClose={() => setCallFor(null)} onSave={({ date, name }) => { const id = callFor.id; setCallFor(null); recordNewCall(id, { date, name }); playCompletion(); }} />}
     </div>
-  );
-}
-
-/** Completion popup for a "New Calls" task — capture Date + Name, then complete. */
-function NewCallPopup({ onClose, onSave }: { onClose: () => void; onSave: (date: string, name: string) => void }) {
-  const [date, setDate] = useState(toISO(todayLocal()) || '');
-  const [name, setName] = useState('');
-  const submit = () => {
-    if (!date) { showToast('error', 'Pick a date for the call.'); return; }
-    if (!name.trim()) { showToast('error', 'Enter a name for the call.'); return; }
-    onSave(date, name.trim());
-  };
-  return (
-    <Modal title="Record New Call" onClose={onClose}
-      foot={<><button className="btn ghost" onClick={onClose}>Cancel</button><button className="btn gold" onClick={submit}>Save</button></>}>
-      <div className="grid2">
-        <div className="field"><label>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
-        <div className="field"><label>Name</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} /></div>
-      </div>
-    </Modal>
   );
 }

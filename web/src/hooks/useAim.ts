@@ -12,6 +12,8 @@ export interface AimApi {
   completeTask: (id: string) => void;
   /** Record a New Call (from a "New Calls" task's completion popup) and complete the task. */
   recordNewCall: (taskId: string, call: { date: string | null; name: string }) => void;
+  /** Record a standalone New Call not tied to a task (Dashboard New Calls tray). */
+  addNewCall: (call: { date: string | null; name: string; analysts: string[] }) => void;
   undo: () => void;
   redo: () => void;
 }

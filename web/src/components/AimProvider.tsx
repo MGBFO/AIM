@@ -302,6 +302,14 @@ export function AimProvider({ children }: { children: ReactNode }) {
     showToast('success', 'New call recorded.');
   }, [patch]);
 
-  const api: AimApi = { state, ready, patch, addTask, updateTask, deleteTask, completeTask, recordNewCall, undo, redo };
+  const addNewCall = useCallback((call: { date: string | null; name: string; analysts: string[] }) => {
+    const date = call.date || null;
+    const year = date ? parseInt(date.slice(0, 4), 10) : new Date().getFullYear();
+    const rec: NewCall = { id: uid('call'), taskId: null, name: (call.name || '').trim(), callDate: date, analysts: call.analysts, year };
+    patch((s) => { s.newCalls = [...s.newCalls, rec]; });
+    showToast('success', 'New call recorded.');
+  }, [patch]);
+
+  const api: AimApi = { state, ready, patch, addTask, updateTask, deleteTask, completeTask, recordNewCall, addNewCall, undo, redo };
   return <AimContext.Provider value={api}>{children}</AimContext.Provider>;
 }

@@ -2,12 +2,12 @@ import { useState } from 'react';
 import { useAim } from '../hooks/useAim';
 import { formatDateMMDDYYYY, parseLocalDate, todayLocal, getLocalQuarterRange, inRange } from '../lib/dates';
 import { isValidUrl, normUrl } from '../lib/format';
-import { isMonOverdue } from '../lib/monitoring';
 import { isTaskOverdue } from '../lib/tasks';
 import { uid } from '../lib/util';
 import { showToast } from '../lib/toast';
 import { Modal } from '../components/Modal';
 import { Confirm } from '../components/Confirm';
+import { NewCallPopup } from '../components/NewCallPopup';
 import type { AimState, Trip, UsefulLink, NewCall } from '../lib/domain';
 
 const t = (d: string | null) => parseLocalDate(d)?.getTime() ?? 0;
@@ -48,8 +48,6 @@ export function Dashboard() {
   const onsiteChecked = level1.filter((m) => m.annualOnsite).length;
   const compChecked = level1.filter((m) => m.complianceCheck).length;
   const ratio = (n: number, d: number) => (d === 0 ? `${n} / ${d}` : `${n} / ${d} (${Math.round((n / d) * 100)}%)`);
-  const l1Overdue = level1.filter(isMonOverdue).length;
-  const l1OverduePct = l1Total ? Math.round((l1Overdue / l1Total) * 100) : 0;
 
   const overdueTasks = (state.tasks || []).filter(isTaskOverdue).sort((a, b) => t(a.dueDate) - t(b.dueDate));
 
@@ -104,8 +102,8 @@ export function Dashboard() {
             </div>
           </div>
           <div className="ratio-row">
-            <div className="ratio">Annual Onsite<br /><b>{ratio(onsiteChecked, l1Total)}</b> <span className={'ovr-pct' + (l1OverduePct === 0 ? ' ok' : '')}>{l1OverduePct}% overdue</span></div>
-            <div className="ratio">Compliance Check<br /><b>{ratio(compChecked, l1Total)}</b> <span className={'ovr-pct' + (l1OverduePct === 0 ? ' ok' : '')}>{l1OverduePct}% overdue</span></div>
+            <div className="ratio">Annual Onsite<br /><b>{ratio(onsiteChecked, l1Total)}</b></div>
+            <div className="ratio">Compliance Check<br /><b>{ratio(compChecked, l1Total)}</b></div>
           </div>
         </div>
 
@@ -134,15 +132,15 @@ export function Dashboard() {
           <div className="panel-sub">Next meeting on schedule</div>
           <div className="prc-box">
             <div className="prc-row prc-top">
-              <div className="b"><div className="l">Next Projected Meeting</div><div className="v">{top && top.projectedNext ? formatDateMMDDYYYY(top.projectedNext) : '-'}</div></div>
-              <div className="b"><div className="l">Macro</div><div className="v">{top ? prcVal(top.macro) : '-'}</div></div>
-              <div className="b"><div className="l">Presentation</div><div className="v">{top ? prcVal(top.presentation) : '-'}</div></div>
+              <div className="b b-gold"><div className="l">Next Projected Meeting</div><div className="v">{top && top.projectedNext ? formatDateMMDDYYYY(top.projectedNext) : '-'}</div></div>
+              <div className="b b-blue"><div className="l">Macro</div><div className="v">{top ? prcVal(top.macro) : '-'}</div></div>
+              <div className="b b-gold"><div className="l">Presentation</div><div className="v">{top ? prcVal(top.presentation) : '-'}</div></div>
             </div>
             <div className="prc-row prc-bottom">
-              <div className="b"><div className="l">40-Act</div><div className="v">{top ? prcVal(top.act40) : '-'}</div></div>
-              <div className="b"><div className="l">Hedge Fund</div><div className="v">{top ? prcVal(top.hedgeFund) : '-'}</div></div>
-              <div className="b"><div className="l">Private</div><div className="v">{top ? prcVal(top.private) : '-'}</div></div>
-              <div className="b"><div className="l">New Funds/Projects</div><div className="v">{top ? prcVal(top.newFunds) : '-'}</div></div>
+              <div className="b b-blue"><div className="l">40-Act</div><div className="v">{top ? prcVal(top.act40) : '-'}</div></div>
+              <div className="b b-blue"><div className="l">Hedge Fund</div><div className="v">{top ? prcVal(top.hedgeFund) : '-'}</div></div>
+              <div className="b b-blue"><div className="l">Private</div><div className="v">{top ? prcVal(top.private) : '-'}</div></div>
+              <div className="b b-green"><div className="l">New Funds/Projects</div><div className="v">{top ? prcVal(top.newFunds) : '-'}</div></div>
             </div>
           </div>
         </div>
@@ -159,10 +157,12 @@ export function Dashboard() {
 const NC_ANALYSTS = ['Mike Gregory', 'Jack Griffin', 'Harrison Fritz'];
 
 function NewCallsPanel({ calls }: { calls: NewCall[] }) {
+  const { addNewCall } = useAim();
   const currentYear = todayLocal().getFullYear();
   const years = [...new Set([currentYear, ...calls.map((c) => c.year)])].sort((a, b) => b - a);
   const [year, setYear] = useState(currentYear);
   const [detail, setDetail] = useState<string | null>(null);
+  const [showNew, setShowNew] = useState(false);
   const yearCalls = calls.filter((c) => c.year === year);
   const countFor = (a: string) => yearCalls.filter((c) => c.analysts.includes(a)).length;
   const counts = NC_ANALYSTS.map((a) => ({ a, n: countFor(a) }));
@@ -173,6 +173,7 @@ function NewCallsPanel({ calls }: { calls: NewCall[] }) {
       <div className="nc-ribbon">
         <h4>New Calls</h4>
         <span className="nc-total">{yearCalls.length}</span>
+        <button className="btn sm gold nc-new" onClick={() => setShowNew(true)}>New</button>
         <select className="inp-sm nc-year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
           {years.map((y) => <option key={y} value={y}>{y}</option>)}
         </select>
@@ -187,6 +188,8 @@ function NewCallsPanel({ calls }: { calls: NewCall[] }) {
         ))}</tbody>
       </table>
       {detail && <NewCallsDetail analyst={detail} year={year} calls={yearCalls.filter((c) => c.analysts.includes(detail))} onClose={() => setDetail(null)} />}
+      {showNew && <NewCallPopup analystOptions={NC_ANALYSTS} onClose={() => setShowNew(false)}
+        onSave={({ date, name, analyst }) => { addNewCall({ date, name, analysts: analyst ? [analyst] : [] }); setShowNew(false); }} />}
     </div>
   );
 }
