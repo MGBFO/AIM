@@ -50,6 +50,7 @@ input, select, textarea { font-family: inherit; }
 .card.accent-gold { border-top: 3px solid var(--gold); }
 .card.accent-blue { border-top: 3px solid var(--blue); }
 .card.accent-red { border-top: 3px solid var(--red); }
+.card.accent-green { border-top: 3px solid var(--green); }
 .card .sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
 .card .mon-period { font-size: 11px; color: var(--muted); margin-top: 5px; font-weight: 500; }
 .card .value.red { color: var(--red); }
