@@ -71,15 +71,25 @@ export function reconcileTaskLinks(prev: AimState, draft: AimState): void {
       const ad = pick(taskA, normalizeAnalystName(pt?.analysts?.[0] ?? taskA), normalizeAnalystName(mon.analyst), normalizeAnalystName(pm?.analyst ?? mon.analyst));
       if (ad === 'A') mon.analyst = taskA;
       else if (ad === 'B' && open) t.analysts = [normalizeAnalystName(mon.analyst)];
-      // completion status: task 'completed' <-> mon.status 'Completed'
+      // work status: task open/in_process/completed <-> mon Not Started/In
+      // Progress/Completed. Kept in sync in both directions so a status change
+      // in either module reflects in the other.
+      const taskState = (s: string) => (s === 'completed' ? 'C' : s === 'in_process' ? 'P' : 'O');
+      const monState = (s: string) => (s === 'Completed' ? 'C' : s === 'In Progress' ? 'P' : 'O');
       const sd = pick(
-        t.status === 'completed' ? 'C' : 'O', (pt?.status ?? t.status) === 'completed' ? 'C' : 'O',
-        mon.status === 'Completed' ? 'C' : 'O', (pm?.status ?? mon.status) === 'Completed' ? 'C' : 'O',
+        taskState(t.status), taskState(pt?.status ?? t.status),
+        monState(mon.status), monState(pm?.status ?? mon.status),
       );
-      if (sd === 'A') mon.status = t.status === 'completed' ? 'Completed' : (mon.status === 'Completed' ? 'In Progress' : mon.status);
-      else if (sd === 'B') {
-        if (mon.status === 'Completed' && t.status !== 'completed') { t.status = 'completed'; t.completedAt = new Date().toISOString(); }
-        else if (mon.status !== 'Completed' && t.status === 'completed') { t.status = 'open'; t.completedAt = null; }
+      if (sd === 'A') {
+        mon.status = t.status === 'completed' ? 'Completed' : t.status === 'in_process' ? 'In Progress' : 'Not Started';
+      } else if (sd === 'B') {
+        const ns = mon.status === 'Completed' ? 'completed' : mon.status === 'In Progress' ? 'in_process' : 'open';
+        if (ns !== t.status) {
+          const wasCompleted = t.status === 'completed';
+          t.status = ns;
+          if (ns === 'completed') t.completedAt = new Date().toISOString();
+          else if (wasCompleted) t.completedAt = null;
+        }
       }
     }
   }

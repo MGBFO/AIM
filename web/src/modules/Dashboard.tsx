@@ -133,8 +133,8 @@ export function Dashboard() {
           <div className="prc-box">
             <div className="prc-row prc-top">
               <div className="b b-gold"><div className="l">Next Projected Meeting</div><div className="v">{top && top.projectedNext ? formatDateMMDDYYYY(top.projectedNext) : '-'}</div></div>
-              <div className="b b-blue"><div className="l">Macro</div><div className="v">{top ? prcVal(top.macro) : '-'}</div></div>
               <div className="b b-gold"><div className="l">Presentation</div><div className="v">{top ? prcVal(top.presentation) : '-'}</div></div>
+              <div className="b b-blue"><div className="l">Macro</div><div className="v">{top ? prcVal(top.macro) : '-'}</div></div>
             </div>
             <div className="prc-row prc-bottom">
               <div className="b b-blue"><div className="l">40-Act</div><div className="v">{top ? prcVal(top.act40) : '-'}</div></div>
