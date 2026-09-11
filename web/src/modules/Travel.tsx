@@ -3,7 +3,7 @@ import { useAim } from '../hooks/useAim';
 import { toISO } from '../lib/dates';
 import { applyColSort, nextSortDir, sortCaret, type SortState } from '../lib/sort';
 import { moneyFmt, cleanCost, cleanDays } from '../lib/format';
-import { parseTravelAnalysts } from '../lib/roster';
+import { parseTravelAnalysts, APPROVED_ANALYSTS, ANALYST_CODES } from '../lib/roster';
 import { uid } from '../lib/util';
 import { showToast } from '../lib/toast';
 import { DateCell } from '../components/DateCell';
@@ -18,6 +18,8 @@ const TRV_KEY: Record<string, keyof Trip> = {
   Date: 'date', Days: 'days', City: 'city', Analyst: 'analyst', 'Monitoring Visits': 'monitoringVisits',
   'Event/Conference': 'event', Flight: 'flight', Hotel: 'hotel', Car: 'car', 'Notes/Other Visits': 'notesOtherVisits',
 };
+// canonical analyst name -> code (e.g. "Mike Gregory" -> "MG"), for the filter.
+const codeOf: Record<string, string> = Object.fromEntries(Object.entries(ANALYST_CODES).map(([code, name]) => [name, code]));
 
 export function Travel() {
   const { state, patch, addTask } = useAim();
@@ -28,10 +30,23 @@ export function Travel() {
   // Upcoming + Potential share one sort; Archived sorts independently.
   const [sort, setSort] = useState<SortState>({ key: null, dir: null });
   const [archSort, setArchSort] = useState<SortState>({ key: null, dir: null });
+  const [fAnalyst, setFAnalyst] = useState('All Analysts');
 
   const trips = state.trips;
   const sortWith = (list: Trip[], s: SortState) => applyColSort(list, s, (t, k) => t[k as keyof Trip]);
-  const upcoming = sortWith(trips.filter((t) => t.section === 'upcoming'), sort);
+  // Active Trips analyst filter — trip analysts are free-text (e.g. "MG/JG").
+  // "Contains" convention: a multi-analyst trip matches if the picked analyst is
+  // any of them. Match parsed canonical names, plus the raw text against the
+  // canonical name and its code (MG/JG/HF), so "MG/JG" matches a filter of MG.
+  const matchAnalyst = (t: Trip) => {
+    if (fAnalyst === 'All Analysts') return true;
+    if ((parseTravelAnalysts(t.analyst) as string[]).includes(fAnalyst)) return true;
+    const raw = (t.analyst || '').toLowerCase();
+    if (raw.includes(fAnalyst.toLowerCase())) return true;
+    const code = codeOf[fAnalyst];
+    return !!code && raw.includes(code.toLowerCase());
+  };
+  const upcoming = sortWith(trips.filter((t) => t.section === 'upcoming' && matchAnalyst(t)), sort);
   const potential = sortWith(trips.filter((t) => t.section === 'potential'), sort);
   const archived = sortWith(trips.filter((t) => t.section === 'archived'), archSort);
   const editTripField = (id: string, k: keyof Trip, v: unknown) => patch((s) => { s.trips = s.trips.map((t) => (t.id === id ? { ...t, [k]: v } : t)); });
@@ -115,8 +130,9 @@ export function Travel() {
         <button className="btn" onClick={addToBandwidth}>Add to Analyst Bandwidth</button>
         <button className="btn blue" onClick={() => { const s = selIn(upcoming); if (!s.length) { showToast('warning', 'Select upcoming trips to archive.'); return; } moveSection(s.map((x) => x.id), 'archived'); showToast('success', 'Archived selected trips.'); }}>Archive</button>
         <button className="btn ghost" onClick={() => { const s = selIn(upcoming); if (!s.length) { showToast('warning', 'Select trips first.'); return; } moveSection(s.map((x) => x.id), 'potential'); showToast('success', 'Moved to Potential.'); }}>Potential</button>
+        <select className="inp-sm" value={fAnalyst} onChange={(e) => setFAnalyst(e.target.value)}><option>All Analysts</option>{APPROVED_ANALYSTS.map((a) => <option key={a}>{a}</option>)}</select>
       </div>
-      <div className="tbl-wrap"><table className="trv-center"><Head sort={sort} setSort={setSort} /><tbody>{upcoming.length ? upcoming.map((t) => <Row key={t.id} t={t} />) : emptyRow('No upcoming trips.')}</tbody></table></div>
+      <div className="tbl-wrap"><table className="trv-center"><Head sort={sort} setSort={setSort} /><tbody>{upcoming.length ? upcoming.map((t) => <Row key={t.id} t={t} />) : emptyRow(fAnalyst === 'All Analysts' ? 'No upcoming trips.' : `No upcoming trips for ${fAnalyst}.`)}</tbody></table></div>
 
       <div className="section-bar"><h3>Potential Trips</h3></div>
       <div className="ribbon">
