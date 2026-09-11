@@ -63,6 +63,31 @@ describe('reconcileTaskLinks — monitoring', () => {
     expect(draft.tasks[0].completedAt).not.toBeNull();
   });
 
+  it('setting the task In Process marks the monitoring row In Progress', () => {
+    const prev = st({ tasks: [task({})], monitoring: [mon({})] });
+    const draft = clone(prev);
+    draft.tasks[0].status = 'in_process';
+    reconcileTaskLinks(prev, draft);
+    expect(draft.monitoring[0].status).toBe('In Progress');
+  });
+
+  it('setting the monitoring row In Progress marks the task In Process', () => {
+    const prev = st({ tasks: [task({})], monitoring: [mon({})] });
+    const draft = clone(prev);
+    draft.monitoring[0].status = 'In Progress';
+    reconcileTaskLinks(prev, draft);
+    expect(draft.tasks[0].status).toBe('in_process');
+  });
+
+  it('moving the monitoring row from Completed back to In Progress un-completes the task', () => {
+    const prev = st({ tasks: [task({ status: 'completed', completedAt: '2026-01-02T00:00:00Z' })], monitoring: [mon({ status: 'Completed' })] });
+    const draft = clone(prev);
+    draft.monitoring[0].status = 'In Progress';
+    reconcileTaskLinks(prev, draft);
+    expect(draft.tasks[0].status).toBe('in_process');
+    expect(draft.tasks[0].completedAt).toBeNull();
+  });
+
   it('leaves pre-existing drift alone when nothing changed this patch', () => {
     const prev = st({ tasks: [task({ dueDate: '2026-01-01' })], monitoring: [mon({ monitoringDate: '2025-12-01' })] });
     const draft = clone(prev);

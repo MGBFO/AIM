@@ -50,7 +50,7 @@ export function Monitoring() {
     .filter((m) => {
       if (fAnalyst !== 'All' && m.analyst !== fAnalyst) return false;
       if (fLevel !== 'All' && m.level !== fLevel) return false;
-      if (fStatus !== 'All') { if (fStatus === 'Overdue') { if (monStatus(m) !== 'Overdue') return false; } else if (monStatus(m) !== fStatus) return false; }
+      if (fStatus !== 'All') { if (fStatus === 'Overdue') { if (monStatus(m) !== 'Overdue') return false; } else if (fStatus === 'Ex-completed') { if (monStatus(m) === 'Completed') return false; } else if (monStatus(m) !== fStatus) return false; }
       if (search && !(m.fund || '').toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     })
@@ -183,7 +183,7 @@ export function Monitoring() {
         <input className="inp-sm" style={{ width: '160px' }} placeholder="Search fund…" value={search} onChange={(e) => setSearch(e.target.value)} />
         <select className="inp-sm" value={fAnalyst} onChange={(e) => setFAnalyst(e.target.value)}><option>All</option>{APPROVED_ANALYSTS.map((a) => <option key={a}>{a}</option>)}</select>
         <select className="inp-sm" value={fLevel} onChange={(e) => setFLevel(e.target.value)}><option>All</option>{LEVELS.map((l) => <option key={l}>{l}</option>)}</select>
-        <select className="inp-sm" value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option>All</option><option>Not Started</option><option>In Progress</option><option>Completed</option><option>Overdue</option></select>
+        <select className="inp-sm" value={fStatus} onChange={(e) => setFStatus(e.target.value)}><option>All</option><option>Not Started</option><option>In Progress</option><option>Completed</option><option>Overdue</option><option>Ex-completed</option></select>
         <label className="save-view" title="Remember these filters on this device"><input type="checkbox" className="chk" checked={saveView} onChange={(e) => setSaveView(e.target.checked)} /> Save View</label>
       </div>
 
