@@ -10,35 +10,23 @@ const mon = (p: Partial<Monitoring>): Monitoring => ({
 });
 
 describe('RolloverModal — non-compliant diagnostics', () => {
-  it('exposes stored Status, Most Recent Date, and the Issue text, and does NOT block on a date mismatch', () => {
-    // Level 1 applies to every rollover boundary, and monitoringDate 2026-08-02 is
-    // never (rollover + 14) — those land on a 15th — so this row is a non-blocking
-    // warning regardless of which rollover date is defaulted/selected.
+  it('does NOT block on a date mismatch — Run Rollover stays enabled, no blocker table', () => {
+    // monitoringDate 2026-08-02 is never (rollover + 14); rollover will just set it.
     render(<RolloverModal active={[mon({})]} onClose={() => {}} onRun={() => {}} />);
-
-    // diagnostic columns present
-    expect(screen.getByText('Status')).toBeInTheDocument();
-    expect(screen.getByText('Most Recent Date')).toBeInTheDocument();
-    expect(screen.getByText('Monitoring Date')).toBeInTheDocument();
-    expect(screen.getByText('Target Days')).toBeInTheDocument();
-    expect(screen.getByText('Expected Monitoring Date')).toBeInTheDocument();
-    expect(screen.getByText('Issue')).toBeInTheDocument();
-
-    // STORED status is shown verbatim (not the computed "Overdue")
-    expect(screen.getByText('In Progress')).toBeInTheDocument();
-    // the mismatch now reads as a non-blocking notice, not a blocker
-    expect(screen.getByText(/not changed by rollover/i)).toBeInTheDocument();
-    // a mm/dd/yyyy date (Most Recent) is shown, internal id is not
-    expect(screen.getByText('06/10/2026')).toBeInTheDocument();
-    expect(screen.queryByText('m1')).not.toBeInTheDocument();
-
-    // Run Rollover is ENABLED — a date mismatch no longer blocks
     expect(screen.getByRole('button', { name: 'Run Rollover' })).toBeEnabled();
+    expect(screen.getByText(/All applicable records comply/i)).toBeInTheDocument();
+    expect(screen.queryByText('Issue')).not.toBeInTheDocument(); // no blocker table
   });
 
-  it('BLOCKS (disables Run Rollover) for a Completed record with no date evidence', () => {
-    render(<RolloverModal active={[mon({ status: 'Completed', mostRecent: null, monitoringDate: null })]} onClose={() => {}} onRun={() => {}} />);
+  it('BLOCKS a Completed record with no date evidence, and exposes the diagnostic columns', () => {
+    render(<RolloverModal active={[mon({ fund: 'Acme', status: 'Completed', mostRecent: null, monitoringDate: null })]} onClose={() => {}} onRun={() => {}} />);
+    // diagnostic columns present on the blocker table
+    ['Status', 'Most Recent Date', 'Monitoring Date', 'Target Days', 'Expected Monitoring Date', 'Issue'].forEach((h) =>
+      expect(screen.getByText(h)).toBeInTheDocument());
+    // STORED status shown verbatim; clear issue; id hidden
+    expect(screen.getByText('Completed')).toBeInTheDocument();
     expect(screen.getByText(/no completion evidence/i)).toBeInTheDocument();
+    expect(screen.queryByText('m1')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Run Rollover' })).toBeDisabled();
   });
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toISO, todayLocal, addDaysISO } from './dates';
-import { parseLevel, levelDays, monStatus, isMonOverdue, rolloverLabel, monitoringPeriodEndISO, excelToISO, parseMonitoringSheet, completeAndRollForwardMonitoringItem, defaultRolloverIso, rolloverValidation, applyRollover } from './monitoring';
+import { parseLevel, levelDays, monStatus, isMonOverdue, rolloverLabel, monitoringPeriodEndISO, excelToISO, parseMonitoringSheet, completeAndRollForwardMonitoringItem, defaultRolloverIso, rolloverBlockers, applyRollover } from './monitoring';
 import type { Monitoring } from './domain';
 
 const mon = (p: Partial<Monitoring>): Monitoring => ({
@@ -82,70 +82,51 @@ describe('defaultRolloverIso', () => {
   });
 });
 
-describe('rolloverValidation — blockers vs non-blocking warnings', () => {
+describe('rolloverBlockers — only true data-integrity issues block', () => {
   const apr = '2026-04-01'; // Apr rollover applies to Level 1 only
 
-  it('Completed with a valid Most Recent Date does not block or warn', () => {
+  it('Completed with a valid Most Recent Date does not block', () => {
     const recs = [mon({ status: 'Completed', mostRecent: '2026-01-15', monitoringDate: '2026-02-20' })];
-    const v = rolloverValidation(recs, apr);
-    expect(v.blockers).toHaveLength(0);
-    expect(v.warnings).toHaveLength(0);
+    expect(rolloverBlockers(recs, apr)).toHaveLength(0);
   });
   it('Completed with blank Most Recent but a Monitoring Date does not block', () => {
     const recs = [mon({ status: 'Completed', mostRecent: null, monitoringDate: '2026-02-20' })];
-    expect(rolloverValidation(recs, apr).blockers).toHaveLength(0);
+    expect(rolloverBlockers(recs, apr)).toHaveLength(0);
   });
   it('Completed missing BOTH dates is BLOCKED with a clear message', () => {
     const recs = [mon({ status: 'Completed', mostRecent: null, monitoringDate: null })];
-    const b = rolloverValidation(recs, apr).blockers;
+    const b = rolloverBlockers(recs, apr);
     expect(b).toHaveLength(1);
     expect(b[0].reason).toMatch(/no completion evidence/i);
   });
 
-  it('a Monitoring Date mismatch is a non-blocking WARNING, not a blocker', () => {
-    // expected = 2026-04-01 + 90 = 2026-06-30; record sits on a different date
+  it('a Monitoring Date mismatch does NOT block (rollover sets the date)', () => {
     const mismatch = [mon({ status: 'In Progress', monitoringDate: '2026-07-12', targetMonitoringDays: 90 })];
-    const v = rolloverValidation(mismatch, apr);
-    expect(v.blockers).toHaveLength(0); // does NOT block
-    expect(v.warnings).toHaveLength(1);
-    expect(v.warnings[0].expected).toBe('2026-06-30');
-
-    // already on its computed date -> no warning
-    const exact = [mon({ status: 'Not Started', monitoringDate: '2026-06-30', targetMonitoringDays: 90 })];
-    const v2 = rolloverValidation(exact, apr);
-    expect(v2.blockers).toHaveLength(0);
-    expect(v2.warnings).toHaveLength(0);
-
-    // a blank Monitoring Date neither blocks nor warns
+    expect(rolloverBlockers(mismatch, apr)).toHaveLength(0);
     const blank = [mon({ status: 'Not Started', monitoringDate: null })];
-    const v3 = rolloverValidation(blank, apr);
-    expect(v3.blockers).toHaveLength(0);
-    expect(v3.warnings).toHaveLength(0);
+    expect(rolloverBlockers(blank, apr)).toHaveLength(0);
   });
 
   it('a missing/invalid Target Monitoring Days BLOCKS', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const bad = [mon({ status: 'Not Started', monitoringDate: '2026-06-30', targetMonitoringDays: null as any })];
-    const b = rolloverValidation(bad, apr).blockers;
+    const b = rolloverBlockers(bad, apr);
     expect(b).toHaveLength(1);
     expect(b[0].reason).toMatch(/Target Monitoring Days/i);
     // zero / negative also invalid
-    expect(rolloverValidation([mon({ targetMonitoringDays: 0 })], apr).blockers).toHaveLength(1);
+    expect(rolloverBlockers([mon({ targetMonitoringDays: 0 })], apr)).toHaveLength(1);
   });
 
   it('ignores out-of-scope levels and archived records', () => {
     const l2 = [mon({ level: 'Level 2', status: 'Completed', mostRecent: null, monitoringDate: null })];
-    expect(rolloverValidation(l2, apr).blockers).toHaveLength(0); // Apr applies to Level 1 only
+    expect(rolloverBlockers(l2, apr)).toHaveLength(0); // Apr applies to Level 1 only
     const arch = [mon({ status: 'Completed', mostRecent: null, monitoringDate: null, archived: true })];
-    expect(rolloverValidation(arch, apr).blockers).toHaveLength(0);
+    expect(rolloverBlockers(arch, apr)).toHaveLength(0);
   });
 
   it('does not block a record whose Monitoring Date differs from a future Expected (10/13 vs 01/01+104)', () => {
-    // 01/01/2027 + 104 = 04/15/2027; record currently on 10/13/2026 must not block
     const rec = [mon({ level: 'Level 1', status: 'In Progress', monitoringDate: '2026-10-13', targetMonitoringDays: 104 })];
-    const v = rolloverValidation(rec, '2027-01-01');
-    expect(v.blockers).toHaveLength(0);
-    expect(v.warnings[0].expected).toBe('2027-04-15');
+    expect(rolloverBlockers(rec, '2027-01-01')).toHaveLength(0);
   });
 });
 
@@ -192,6 +173,43 @@ describe('applyRollover', () => {
   });
 });
 
+describe('applyRollover advances EVERY applicable record (not only Completed)', () => {
+  const oct = '2026-10-01';
+  it('a non-Completed Overdue record (07/10, target 14) rolls to 10/15 Not Started, Most Recent untouched', () => {
+    const recs = [mon({ level: 'Level 1', status: 'In Progress', mostRecent: null, monitoringDate: '2026-07-10', targetMonitoringDays: 14 })];
+    const out = applyRollover(recs, oct);
+    expect(out[0].monitoringDate).toBe('2026-10-15'); // rollover + 14
+    expect(out[0].status).toBe('Not Started');
+    expect(out[0].mostRecent).toBeNull(); // non-Completed: old date is NOT treated as evidence
+    expect(out[0].targetMonitoringDays).toBe(14); // preserved
+    expect(monStatus(out[0])).not.toBe('Overdue'); // new date is in the future
+  });
+  it('a Completed record (07/10, blank Most Recent, target 14) -> Most Recent 07/10, Monitoring 10/15', () => {
+    const recs = [mon({ level: 'Level 1', status: 'Completed', mostRecent: null, monitoringDate: '2026-07-10', targetMonitoringDays: 14 })];
+    const out = applyRollover(recs, oct);
+    expect(out[0].mostRecent).toBe('2026-07-10'); // completion evidence carried over
+    expect(out[0].monitoringDate).toBe('2026-10-15');
+    expect(out[0].status).toBe('Not Started');
+  });
+  it('a Completed record with an existing Most Recent keeps it and still advances', () => {
+    const recs = [mon({ level: 'Level 1', status: 'Completed', mostRecent: '2026-05-20', monitoringDate: '2026-07-10', targetMonitoringDays: 90 })];
+    const out = applyRollover(recs, oct);
+    expect(out[0].mostRecent).toBe('2026-05-20'); // unchanged
+    expect(out[0].monitoringDate).toBe('2026-12-30'); // rollover + 90
+    expect(out[0].status).toBe('Not Started');
+  });
+  it('preserves assorted custom targets (14/55/77/90/104) and uses each as the offset', () => {
+    const targets = [14, 55, 77, 90, 104];
+    const recs = targets.map((t, i) => mon({ id: 'r' + i, level: 'Level 1', status: 'In Progress', monitoringDate: '2026-07-10', targetMonitoringDays: t }));
+    const out = applyRollover(recs, oct);
+    out.forEach((m, i) => {
+      expect(m.targetMonitoringDays).toBe(targets[i]);
+      expect(m.monitoringDate).toBe(addDaysISO(oct, targets[i]));
+      expect(m.status).toBe('Not Started');
+    });
+  });
+});
+
 describe('excelToISO', () => {
   it('handles Date, ISO, US, and unparseable text', () => {
     expect(excelToISO(new Date(2026, 0, 5)).iso).toBe('2026-01-05');
@@ -235,26 +253,20 @@ describe('custom targetMonitoringDays are preserved and drive the next cycle', (
     expect(out[0].mostRecent).toBe('2026-05-01'); // evidence kept
   });
 
-  it('non-Completed validation uses the record’s own target (07/01 + 14 = 07/15)', () => {
-    const match = [mon({ level: 'Level 1', status: 'In Progress', monitoringDate: '2026-07-15', targetMonitoringDays: 14 })];
-    const v = rolloverValidation(match, '2026-07-01');
-    expect(v.blockers).toHaveLength(0);
-    expect(v.warnings).toHaveLength(0); // on its computed date -> no warning
+  it('non-Completed records advance using their own target (07/01 + 14 = 07/15), and never block', () => {
     const off = [mon({ level: 'Level 1', status: 'In Progress', monitoringDate: '2026-08-01', targetMonitoringDays: 14 })];
-    const v2 = rolloverValidation(off, '2026-07-01');
-    expect(v2.blockers).toHaveLength(0); // mismatch does not block
-    expect(v2.warnings[0].expected).toBe('2026-07-15');
+    expect(rolloverBlockers(off, '2026-07-01')).toHaveLength(0); // mismatch does not block
+    const out = applyRollover(off, '2026-07-01');
+    expect(out[0].monitoringDate).toBe('2026-07-15'); // rollover + its own target
+    expect(out[0].status).toBe('Not Started');
   });
 
   it('rollover advances a 104-day offset record to 04/15/2027 (01/01/2027 + 104)', () => {
-    const recs = [mon({ level: 'Level 1', status: 'In Progress', monitoringDate: '2026-10-13', targetMonitoringDays: 104 })];
-    // Non-Completed records are left to their own next-date handling on rollover;
-    // but the computed Expected is 04/15/2027 and it never blocks.
     expect(addDaysISO('2027-01-01', 104)).toBe('2027-04-15');
-    const v = rolloverValidation(recs, '2027-01-01');
-    expect(v.blockers).toHaveLength(0);
-    expect(v.warnings[0].expected).toBe('2027-04-15');
-    // a Completed 104-day record advances its Monitoring Date to 04/15/2027
+    // non-Completed and Completed both advance to 04/15/2027; neither blocks
+    const inprog = [mon({ level: 'Level 1', status: 'In Progress', monitoringDate: '2026-10-13', targetMonitoringDays: 104 })];
+    expect(rolloverBlockers(inprog, '2027-01-01')).toHaveLength(0);
+    expect(applyRollover(inprog, '2027-01-01')[0].monitoringDate).toBe('2027-04-15');
     const done = [mon({ level: 'Level 1', status: 'Completed', mostRecent: '2026-06-01', monitoringDate: '2026-10-13', targetMonitoringDays: 104 })];
     const out = applyRollover(done, '2027-01-01');
     expect(out[0].monitoringDate).toBe('2027-04-15');
