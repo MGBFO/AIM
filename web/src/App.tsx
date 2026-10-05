@@ -23,8 +23,15 @@ export default function App() {
       ) : (
         <LiveApp />
       )}
+      <BuildBadge />
     </>
   );
+}
+
+/** Small always-visible build stamp so the running version is verifiable. */
+function BuildBadge() {
+  const stamp = `${__BUILD_COMMIT__} · ${__BUILD_TIME__.replace('T', ' ').slice(0, 16)}Z`;
+  return <div className="build-badge" title={`Build ${__BUILD_COMMIT__} — ${__BUILD_TIME__}`}>{stamp}</div>;
 }
 
 /** Real backend: Supabase auth gate around the shared shell. */
