@@ -9,7 +9,8 @@ import { showToast } from '../lib/toast';
 import {
   levelDays, monStatus, isMonOverdue, rolloverLabel, monitoringPeriodEndISO, exportMonitoring, exportMonitoringXlsx,
   readMonitoringWorkbook, parseMonitoringSheet, parseCsv, completeAndRollForwardMonitoringItem,
-  rolloverOptions, defaultRolloverIso, rolloverNonCompliant, applyRollover, type ImportDiag,
+  rolloverOptions, defaultRolloverIso, rolloverNonCompliant, applyRollover,
+  repairTargetDays, repairTargetDaysDiag, type ImportDiag,
 } from '../lib/monitoring';
 import { DateCell } from '../components/DateCell';
 import { Modal } from '../components/Modal';
@@ -118,6 +119,26 @@ export function Monitoring() {
     if (made) showToast('success', `${made} Monitoring Calls task${made > 1 ? 's' : ''} added.`);
   };
 
+  // Data cleanup: normalize Target Monitoring Days to the level standard
+  // (L1=90, L2=180, L3=365). Explicit click + confirm; undoable via patch.
+  const repairTargets = () => {
+    const d = repairTargetDaysDiag(state.monitoring);
+    if (d.total === 0) { showToast('info', 'All target monitoring days already match their level.'); return; }
+    setConfirm({
+      title: 'Repair Target Days',
+      message:
+        `Records to repair — Level 1: ${d.l1}, Level 2: ${d.l2}, Level 3: ${d.l3} (total ${d.total}).\n\n` +
+        'Repair target monitoring days based on monitoring level? Level 1 = 90, Level 2 = 180, Level 3 = 365. ' +
+        'This will not change Most Recent Date, Monitoring Date, Status, Annual Onsite, or Compliance Check.',
+      confirmLabel: 'Repair',
+      onConfirm: () => {
+        patch((s) => { s.monitoring = repairTargetDays(s.monitoring); });
+        setConfirm(null);
+        showToast('success', 'Target monitoring days repaired.');
+      },
+    });
+  };
+
   const commitImport = (records: Monitoring[], diag: ImportDiag) => {
     if (records.length) patch((s) => { s.monitoring = [...s.monitoring, ...records]; });
     setImportDiag(diag);
@@ -216,6 +237,8 @@ export function Monitoring() {
         <label className="btn ghost" style={{ cursor: 'pointer' }}>Import CSV<input type="file" accept=".csv" style={{ display: 'none' }} onChange={onImportCsv} /></label>
         <button className="btn" onClick={() => exportMonitoringXlsx(active)}>Export XLSX</button>
         <button className="btn" onClick={() => exportMonitoring(active)}>Export CSV</button>
+        <div className="spacer"></div>
+        <button className="btn" title="Normalize Target Monitoring Days to the level standard (L1=90, L2=180, L3=365)" onClick={repairTargets}>Repair Target Days</button>
       </div>
 
       {editRec && <MonEditor rec={editRec} onSave={(r) => { patch((s) => { if (r.id && s.monitoring.some((x) => x.id === r.id)) s.monitoring = s.monitoring.map((x) => (x.id === r.id ? r : x)); else s.monitoring = [...s.monitoring, { ...r, id: uid('mon'), archived: false }]; }); setEditRec(null); showToast('success', 'Fund saved.'); }} onClose={() => setEditRec(null)} />}
