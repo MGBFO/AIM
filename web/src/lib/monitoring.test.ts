@@ -126,21 +126,31 @@ describe('rolloverNonCompliant — Completed-status validation', () => {
 
 describe('applyRollover', () => {
   const apr = '2026-04-01';
+  const oct = '2026-10-01';
   const jan = '2026-01-01';
 
-  it('resets applicable Completed records to Not Started and preserves Most Recent evidence', () => {
+  it('resets Completed records to Not Started, preserves Most Recent, and advances Monitoring Date', () => {
+    // apr + 90 days = 2026-06-30
     const recs = [mon({ status: 'Completed', mostRecent: '2026-01-15', monitoringDate: '2026-03-01' })];
     const out = applyRollover(recs, apr);
     expect(out[0].status).toBe('Not Started');
-    expect(out[0].mostRecent).toBe('2026-01-15'); // evidence preserved
-    expect(out[0].monitoringDate).toBe('2026-03-01'); // left to existing next-date logic
+    expect(out[0].mostRecent).toBe('2026-01-15'); // populated evidence unchanged
+    expect(out[0].monitoringDate).toBe('2026-06-30'); // advanced to next cycle (rollover + Target)
   });
-  it('copies Monitoring Date into a blank Most Recent before reset', () => {
-    const recs = [mon({ status: 'Completed', mostRecent: null, monitoringDate: '2026-03-01' })];
-    const out = applyRollover(recs, apr);
-    expect(out[0].mostRecent).toBe('2026-03-01'); // carried over as completion evidence
+  it('carries a blank Most Recent from the old Monitoring Date, then advances Monitoring Date', () => {
+    // 10/01/2026 + 90 = 12/30/2026
+    const recs = [mon({ status: 'Completed', mostRecent: null, monitoringDate: '2026-07-13', targetMonitoringDays: 90 })];
+    const out = applyRollover(recs, oct);
+    expect(out[0].mostRecent).toBe('2026-07-13'); // old date kept as completion evidence
+    expect(out[0].monitoringDate).toBe('2026-12-30'); // next required date
     expect(out[0].status).toBe('Not Started');
-    expect(out[0].monitoringDate).toBe('2026-03-01');
+  });
+  it('rolled-over Completed records are not immediately Overdue (new date is in the future)', () => {
+    // today is 2026-10-05 in this suite's environment; new date 12/30/2026 > today
+    const recs = [mon({ status: 'Completed', mostRecent: null, monitoringDate: '2026-07-13', targetMonitoringDays: 90 })];
+    const out = applyRollover(recs, oct);
+    expect(monStatus(out[0])).toBe('Not Started');
+    expect(monStatus(out[0])).not.toBe('Overdue');
   });
   it('clears Annual Onsite / Compliance Check for Level 1 only on the Jan 1 boundary', () => {
     const recs = [mon({ level: 'Level 1', status: 'Completed', mostRecent: '2026-01-10', annualOnsite: true, complianceCheck: true })];

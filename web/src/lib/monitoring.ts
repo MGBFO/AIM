@@ -129,12 +129,17 @@ export function rolloverNonCompliant(active: Monitoring[], pickIso: string): Rol
 
 /**
  * Apply a rollover to the monitoring list for a chosen rollover date. For each
- * applicable (non-archived, in-scope level) record: preserve completion
- * evidence — a Completed record with no Most Recent Date but a Monitoring Date
- * keeps that date as Most Recent before any reset — then reset Completed status
- * to Not Started, and clear Annual Onsite / Compliance Check for Level 1 on the
- * Jan 1 boundary. Monitoring Date is left to the existing next-date logic
- * (unchanged here). Returns a new array; archived/out-of-scope rows pass through.
+ * applicable (non-archived, in-scope level) Completed record, advance to the
+ * next cycle:
+ *   1. preserve completion evidence — if Most Recent Date is blank, carry the
+ *      old Monitoring Date into it before it is overwritten;
+ *   2. set Monitoring Date to the next required date using the existing repo
+ *      expected-date rule (rollover date + Target Monitoring Days);
+ *   3. reset status to Not Started.
+ * Level 1 records also clear Annual Onsite / Compliance Check on the Jan 1
+ * boundary. Non-Completed records are left untouched (they must already sit on
+ * the computed date to pass validation). Returns a new array; archived and
+ * out-of-scope rows pass through unchanged.
  */
 export function applyRollover(monitoring: Monitoring[], iso: string): Monitoring[] {
   const d = parseLocalDate(iso)!;
@@ -143,8 +148,11 @@ export function applyRollover(monitoring: Monitoring[], iso: string): Monitoring
   return monitoring.map((m) => {
     if (m.archived || !applies.includes(m.level)) return m;
     const nm = { ...m };
-    if (nm.status === 'Completed' && !nm.mostRecent && nm.monitoringDate) nm.mostRecent = nm.monitoringDate;
-    if (nm.status === 'Completed') nm.status = 'Not Started';
+    if (nm.status === 'Completed') {
+      if (!nm.mostRecent && nm.monitoringDate) nm.mostRecent = nm.monitoringDate; // evidence first
+      nm.monitoringDate = addDaysISO(iso, nm.targetMonitoringDays); // advance to next cycle
+      nm.status = 'Not Started';
+    }
     if (isJan1 && m.level === 'Level 1') { nm.annualOnsite = false; nm.complianceCheck = false; }
     return nm;
   });
