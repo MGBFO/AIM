@@ -158,6 +158,31 @@ export function applyRollover(monitoring: Monitoring[], iso: string): Monitoring
   });
 }
 
+/**
+ * Normalize Target Monitoring Days to the standard for each record's level
+ * (L1 = 90, L2 = 180, L3 = 365). Only the target field changes; every other
+ * field (fund, analyst, level, dates, status, onsite/compliance, archived) is
+ * untouched. Applies to all records, active and archived. Returns a new array.
+ */
+export function repairTargetDays(monitoring: Monitoring[]): Monitoring[] {
+  return monitoring.map((m) => {
+    const want = levelDays(m.level);
+    return m.targetMonitoringDays === want ? m : { ...m, targetMonitoringDays: want };
+  });
+}
+
+/** Count records per level whose Target Monitoring Days differ from the level standard. */
+export function repairTargetDaysDiag(monitoring: Monitoring[]): { l1: number; l2: number; l3: number; total: number } {
+  let l1 = 0, l2 = 0, l3 = 0;
+  for (const m of monitoring) {
+    if (m.targetMonitoringDays === levelDays(m.level)) continue;
+    if (m.level === 'Level 1') l1 += 1;
+    else if (m.level === 'Level 2') l2 += 1;
+    else l3 += 1;
+  }
+  return { l1, l2, l3, total: l1 + l2 + l3 };
+}
+
 /* ─── import ─────────────────────────────────────────────────────────────── */
 export interface ImportDiag {
   fileName: string;
