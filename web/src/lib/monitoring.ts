@@ -2,7 +2,7 @@
    Monitoring helpers + spreadsheet import parser — ported from the spec.
    ========================================================================== */
 import * as XLSX from 'xlsx';
-import { parseLocalDate, todayLocal, formatDateMMDDYYYY, addDaysISO, toISO } from './dates';
+import { parseLocalDate, todayLocal, formatDateMMDDYYYY, addDaysISO } from './dates';
 import { normalizeAnalystName } from './roster';
 import { uid } from './util';
 import { download } from './format';
@@ -98,12 +98,6 @@ export interface RolloverRow extends Monitoring {
   expected: string | null;
   reason: string;
 }
-export interface RolloverValidation {
-  /** True data-integrity problems that prevent rollover. */
-  blockers: RolloverRow[];
-  /** Non-blocking notices (e.g. a Monitoring Date that rollover will update). */
-  warnings: RolloverRow[];
-}
 
 const VALID_LEVELS = ['Level 1', 'Level 2', 'Level 3'];
 /** A usable per-record offset: a positive, finite number. */
@@ -112,67 +106,64 @@ export function validTargetDays(n: unknown): n is number {
 }
 
 /**
- * Validate a rollover for a chosen date. Rollover's job is to SET the next
- * Monitoring Date (= rollover date + Target Monitoring Days), so a current
- * Monitoring Date that differs from that is NOT a blocker — requiring it would
- * be circular. Only true data-integrity problems block:
+ * Records that BLOCK a rollover for a chosen date. Rollover's job is to SET the
+ * next Monitoring Date (= rollover date + Target Monitoring Days) for every
+ * applicable record, so a current Monitoring Date that differs from that is NOT
+ * a blocker — requiring it would be circular, and rollover overwrites it anyway.
+ * Only true data-integrity problems block:
  *   - a Completed record with neither Most Recent nor Monitoring Date (no
  *     completion evidence),
  *   - a missing/invalid Target Monitoring Days,
  *   - a missing/invalid Monitoring Level.
- * A non-Completed applicable record whose Monitoring Date differs from the new
- * Expected date is surfaced as a non-blocking WARNING (rollover will update it).
  * The expected-date formula is unchanged; targetMonitoringDays is never
  * normalized.
  */
-export function rolloverValidation(active: Monitoring[], pickIso: string): RolloverValidation {
+export function rolloverBlockers(active: Monitoring[], pickIso: string): RolloverRow[] {
   const d = parseLocalDate(pickIso);
-  if (!d) return { blockers: [], warnings: [] }; // invalid rollover date: caller guards the button
+  if (!d) return []; // invalid rollover date: caller guards the button
   const applies = ROLLOVER_APPLIES[d.getMonth()] || ['Level 1'];
   const blockers: RolloverRow[] = [];
-  const warnings: RolloverRow[] = [];
   for (const m of active) {
     if (m.archived || !applies.includes(m.level)) continue;
     if (!VALID_LEVELS.includes(m.level)) { blockers.push({ ...m, expected: null, reason: 'Missing or invalid Monitoring Level.' }); continue; }
     if (!validTargetDays(m.targetMonitoringDays)) { blockers.push({ ...m, expected: null, reason: 'Missing or invalid Target Monitoring Days.' }); continue; }
-    const expected = addDaysISO(pickIso, m.targetMonitoringDays);
-    if (m.status === 'Completed') {
-      if (!m.mostRecent && !m.monitoringDate) blockers.push({ ...m, expected, reason: 'Completed with no Most Recent or Monitoring Date — no completion evidence.' });
-      continue; // Completed with evidence is compliant
-    }
-    // Non-Completed: a differing Monitoring Date is informational only. Rollover
-    // advances Completed records; non-Completed records are left unchanged.
-    if (m.monitoringDate && toISO(m.monitoringDate) !== expected) {
-      warnings.push({ ...m, expected, reason: 'Monitoring Date is off this rollover’s cycle date (rollover + Target Days); non-Completed records are not changed by rollover.' });
+    if (m.status === 'Completed' && !m.mostRecent && !m.monitoringDate) {
+      blockers.push({ ...m, expected: addDaysISO(pickIso, m.targetMonitoringDays), reason: 'Completed with no Most Recent or Monitoring Date — no completion evidence.' });
     }
   }
-  return { blockers, warnings };
+  return blockers;
 }
 
 /**
- * Apply a rollover to the monitoring list for a chosen rollover date. For each
- * applicable (non-archived, in-scope level) Completed record, advance to the
- * next cycle:
- *   1. preserve completion evidence — if Most Recent Date is blank, carry the
- *      old Monitoring Date into it before it is overwritten;
+ * Apply a rollover to the monitoring list for a chosen rollover date. EVERY
+ * applicable (non-archived, in-scope level) record advances to the next cycle:
+ *   1. (Completed only) preserve completion evidence — if Most Recent Date is
+ *      blank, carry the old Monitoring Date into it before it is overwritten;
+ *      a populated Most Recent Date is left unchanged. Non-Completed records'
+ *      Most Recent Date is never touched.
  *   2. set Monitoring Date to the next required date using the existing repo
  *      expected-date rule (rollover date + Target Monitoring Days);
  *   3. reset status to Not Started.
- * Level 1 records also clear Annual Onsite / Compliance Check on the Jan 1
- * boundary. Non-Completed records are left untouched (they must already sit on
- * the computed date to pass validation). Returns a new array; archived and
- * out-of-scope rows pass through unchanged.
+ * targetMonitoringDays is preserved exactly (never normalized). Level 1 records
+ * also clear Annual Onsite / Compliance Check on the Jan 1 boundary. A record
+ * with an invalid Target Monitoring Days is a validation blocker, so rollover is
+ * gated off before reaching here; defensively such a record is left unchanged
+ * (no NaN date). Returns a new array; archived and out-of-scope rows pass
+ * through unchanged.
  */
 export function applyRollover(monitoring: Monitoring[], iso: string): Monitoring[] {
-  const d = parseLocalDate(iso)!;
+  const d = parseLocalDate(iso);
+  if (!d) return monitoring; // invalid rollover date: no-op (caller guards the button)
   const isJan1 = d.getMonth() === 0 && d.getDate() === 1;
   const applies = ROLLOVER_APPLIES[d.getMonth()] || ['Level 1'];
   return monitoring.map((m) => {
     if (m.archived || !applies.includes(m.level)) return m;
     const nm = { ...m };
-    if (nm.status === 'Completed') {
-      if (!nm.mostRecent && nm.monitoringDate) nm.mostRecent = nm.monitoringDate; // evidence first
-      nm.monitoringDate = addDaysISO(iso, nm.targetMonitoringDays); // advance to next cycle
+    if (validTargetDays(nm.targetMonitoringDays)) {
+      // Completed records keep their completed date as evidence before it moves.
+      if (nm.status === 'Completed' && !nm.mostRecent && nm.monitoringDate) nm.mostRecent = nm.monitoringDate;
+      // Every applicable record advances to the next cycle date and resets.
+      nm.monitoringDate = addDaysISO(iso, nm.targetMonitoringDays);
       nm.status = 'Not Started';
     }
     if (isJan1 && m.level === 'Level 1') { nm.annualOnsite = false; nm.complianceCheck = false; }
