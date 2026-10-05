@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAim } from '../hooks/useAim';
 import { useSavedView } from '../hooks/useSavedView';
-import { toISO, parseLocalDate, todayLocal, addDaysISO, formatDateMMDDYYYY, getLocalMonthRange, inRange } from '../lib/dates';
+import { toISO, parseLocalDate, todayLocal, formatDateMMDDYYYY, getLocalMonthRange, inRange } from '../lib/dates';
 import { applyColSort, nextSortDir, sortCaret, type SortState } from '../lib/sort';
 import { APPROVED_ANALYSTS } from '../lib/roster';
 import { uid } from '../lib/util';
 import { showToast } from '../lib/toast';
 import {
   levelDays, monStatus, isMonOverdue, rolloverLabel, monitoringPeriodEndISO, exportMonitoring, exportMonitoringXlsx,
-  readMonitoringWorkbook, parseMonitoringSheet, parseCsv, completeAndRollForwardMonitoringItem, type ImportDiag,
+  readMonitoringWorkbook, parseMonitoringSheet, parseCsv, completeAndRollForwardMonitoringItem,
+  rolloverOptions, defaultRolloverIso, rolloverNonCompliant, applyRollover, type ImportDiag,
 } from '../lib/monitoring';
 import { DateCell } from '../components/DateCell';
 import { Modal } from '../components/Modal';
@@ -245,20 +246,9 @@ export function Monitoring() {
       {rollover && <RolloverModal active={active} onClose={() => setRollover(false)}
         onRun={(iso, nonCompliant) => {
           if (nonCompliant) return;
-          patch((s) => {
-            s.monRollover = iso;
-            const d = parseLocalDate(iso)!;
-            const isJan1 = d.getMonth() === 0 && d.getDate() === 1;
-            const months: Record<number, string[]> = { 3: ['Level 1'], 6: ['Level 1', 'Level 2'], 9: ['Level 1'], 0: ['Level 1', 'Level 2', 'Level 3'] };
-            const applies = months[d.getMonth()] || ['Level 1'];
-            s.monitoring = s.monitoring.map((m) => {
-              if (m.archived || !applies.includes(m.level)) return m;
-              const nm = { ...m };
-              if (nm.status === 'Completed') nm.status = 'Not Started';
-              if (isJan1 && m.level === 'Level 1') { nm.annualOnsite = false; nm.complianceCheck = false; }
-              return nm;
-            });
-          });
+          // Preserve completion evidence (blank Most Recent <- Monitoring Date)
+          // before resetting Completed records; see applyRollover.
+          patch((s) => { s.monRollover = iso; s.monitoring = applyRollover(s.monitoring, iso); });
           setRollover(false); showToast('success', 'Rollover applied. Header updated to ' + rolloverLabel(iso) + '.');
         }} />}
       {importDiag && <ImportDiagnostics diag={importDiag} onClose={() => setImportDiag(null)} />}
@@ -331,19 +321,12 @@ function BulkEdit({ recs, onApply, onClose }: { recs: Monitoring[]; onApply: (c:
 
 function RolloverModal({ active, onClose, onRun }: { active: Monitoring[]; onClose: () => void; onRun: (iso: string, nonCompliant: boolean) => void }) {
   const yr = todayLocal().getFullYear();
-  const opts: [string, string][] = [[`04/01/${yr}`, `${yr}-04-01`], [`07/01/${yr}`, `${yr}-07-01`], [`10/01/${yr}`, `${yr}-10-01`], [`01/01/${yr + 1}`, `${yr + 1}-01-01`]];
-  const [pick, setPick] = useState(opts[0][1]);
-  const result = useMemo(() => {
-    const d = parseLocalDate(pick)!;
-    const months: Record<number, string[]> = { 3: ['Level 1'], 6: ['Level 1', 'Level 2'], 9: ['Level 1'], 0: ['Level 1', 'Level 2', 'Level 3'] };
-    const applies = months[d.getMonth()] || ['Level 1'];
-    const recs = active.filter((m) => applies.includes(m.level));
-    const bad = recs
-      .filter((m) => { const expected = addDaysISO(pick, m.targetMonitoringDays); return m.monitoringDate && toISO(m.monitoringDate) !== expected; })
-      .map((m) => ({ ...m, expected: addDaysISO(pick, m.targetMonitoringDays) }));
-    return { bad };
-  }, [pick, active]);
-  const nonCompliant = result.bad.length > 0;
+  const opts = rolloverOptions(yr);
+  // Default to the next rollover date on or after today (01/01 next year once
+  // the current year's dates have passed).
+  const [pick, setPick] = useState(() => defaultRolloverIso(toISO(todayLocal())!, yr));
+  const bad = useMemo(() => rolloverNonCompliant(active, pick), [pick, active]);
+  const nonCompliant = bad.length > 0;
   return (
     <Modal title="Rollover Validation" wide onClose={onClose}
       foot={<><button className="btn ghost" onClick={onClose}>Cancel</button><button className="btn gold" disabled={nonCompliant} onClick={() => onRun(pick, nonCompliant)}>Run Rollover</button></>}>
@@ -353,8 +336,8 @@ function RolloverModal({ active, onClose, onRun }: { active: Monitoring[]; onClo
         <>
           <p className="ovr" style={{ fontWeight: 600, margin: '4px 0' }}>Non-compliant records found. Cancel and correct these before rollover.</p>
           <div className="tbl-wrap" style={{ margin: 0 }}><table>
-            <thead><tr><th>Fund</th><th>Analyst</th><th>Level</th><th>Actual Monitoring Date</th><th>Expected Monitoring Date</th><th>Target Days</th></tr></thead>
-            <tbody>{result.bad.map((m) => <tr key={m.id}><td>{m.fund}</td><td>{m.analyst}</td><td>{m.level}</td><td>{formatDateMMDDYYYY(m.monitoringDate)}</td><td>{formatDateMMDDYYYY(m.expected)}</td><td className="num">{m.targetMonitoringDays}</td></tr>)}</tbody>
+            <thead><tr><th>Fund</th><th>Analyst</th><th>Level</th><th>Actual Monitoring Date</th><th>Expected Monitoring Date</th><th>Target Days</th><th>Issue</th></tr></thead>
+            <tbody>{bad.map((m) => <tr key={m.id}><td>{m.fund}</td><td>{m.analyst}</td><td>{m.level}</td><td>{formatDateMMDDYYYY(m.monitoringDate)}</td><td>{m.expected ? formatDateMMDDYYYY(m.expected) : '-'}</td><td className="num">{m.targetMonitoringDays}</td><td className="ovr">{m.reason}</td></tr>)}</tbody>
           </table></div>
         </>
       ) : <p style={{ color: 'var(--green-tx)', fontWeight: 600 }}>All applicable records comply. Run Rollover to update the rollover anchor and reset Completed statuses.</p>}

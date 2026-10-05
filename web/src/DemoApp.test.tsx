@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import App from './App';
 
 // Force DEMO mode: no backend, seeded from the reference data.
@@ -25,5 +25,21 @@ describe('Demo mode', () => {
     // dashboard panels render (unique headings)
     expect(screen.getByText('Useful Links')).toBeInTheDocument();
     expect(screen.getByText('Next Upcoming 5 Trips')).toBeInTheDocument();
+  });
+
+  it('walks all six modules and each renders without console errors', async () => {
+    render(<App />);
+    await screen.findByText('Most Recent 5 Trips'); // Dashboard booted
+
+    const go = async (nav: string, find: () => Promise<unknown>) => {
+      fireEvent.click(screen.getByRole('button', { name: nav }));
+      await find();
+    };
+    await go('Travel Schedule', () => screen.findByText('Potential Trips'));
+    await go('Monitoring Process', () => screen.findByText('Total Active Funds'));
+    await go('Portfolio Research Committee', () => screen.findByText('Meeting Archive'));
+    await go('Analyst Bandwidth', () => screen.findByText('Total Open Tasks'));
+    await go('Workflow Calendar', () => screen.findByRole('button', { name: /Prev/ }));
+    await go('Dashboard', () => screen.findByText('Useful Links'));
   });
 });
