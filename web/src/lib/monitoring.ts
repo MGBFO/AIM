@@ -94,37 +94,59 @@ export function defaultRolloverIso(todayIso: string, year: number): string {
   return (opts.find(([, v]) => v >= todayIso) || opts[opts.length - 1])[1];
 }
 
-export interface RolloverBadRow extends Monitoring {
+export interface RolloverRow extends Monitoring {
   expected: string | null;
   reason: string;
 }
+export interface RolloverValidation {
+  /** True data-integrity problems that prevent rollover. */
+  blockers: RolloverRow[];
+  /** Non-blocking notices (e.g. a Monitoring Date that rollover will update). */
+  warnings: RolloverRow[];
+}
+
+const VALID_LEVELS = ['Level 1', 'Level 2', 'Level 3'];
+/** A usable per-record offset: a positive, finite number. */
+export function validTargetDays(n: unknown): n is number {
+  return typeof n === 'number' && Number.isFinite(n) && n > 0;
+}
 
 /**
- * Non-compliant rollover records for a chosen rollover date. Completed records
- * are treated as compliant when there is completion evidence — a Most Recent
- * Date, or a Monitoring Date we can carry over; only a Completed record missing
- * BOTH is blocked. Non-Completed applicable records keep the existing
- * expected-date rule exactly (expected = rollover date + Target Monitoring Days;
- * flagged when a present Monitoring Date differs). The expected-date formula is
- * unchanged.
+ * Validate a rollover for a chosen date. Rollover's job is to SET the next
+ * Monitoring Date (= rollover date + Target Monitoring Days), so a current
+ * Monitoring Date that differs from that is NOT a blocker — requiring it would
+ * be circular. Only true data-integrity problems block:
+ *   - a Completed record with neither Most Recent nor Monitoring Date (no
+ *     completion evidence),
+ *   - a missing/invalid Target Monitoring Days,
+ *   - a missing/invalid Monitoring Level.
+ * A non-Completed applicable record whose Monitoring Date differs from the new
+ * Expected date is surfaced as a non-blocking WARNING (rollover will update it).
+ * The expected-date formula is unchanged; targetMonitoringDays is never
+ * normalized.
  */
-export function rolloverNonCompliant(active: Monitoring[], pickIso: string): RolloverBadRow[] {
-  const d = parseLocalDate(pickIso)!;
+export function rolloverValidation(active: Monitoring[], pickIso: string): RolloverValidation {
+  const d = parseLocalDate(pickIso);
+  if (!d) return { blockers: [], warnings: [] }; // invalid rollover date: caller guards the button
   const applies = ROLLOVER_APPLIES[d.getMonth()] || ['Level 1'];
-  const bad: RolloverBadRow[] = [];
+  const blockers: RolloverRow[] = [];
+  const warnings: RolloverRow[] = [];
   for (const m of active) {
     if (m.archived || !applies.includes(m.level)) continue;
-    if (m.status === 'Completed') {
-      if (m.mostRecent || m.monitoringDate) continue; // has completion evidence
-      bad.push({ ...m, expected: null, reason: 'Completed with no Most Recent or Monitoring Date — no completion evidence.' });
-      continue;
-    }
+    if (!VALID_LEVELS.includes(m.level)) { blockers.push({ ...m, expected: null, reason: 'Missing or invalid Monitoring Level.' }); continue; }
+    if (!validTargetDays(m.targetMonitoringDays)) { blockers.push({ ...m, expected: null, reason: 'Missing or invalid Target Monitoring Days.' }); continue; }
     const expected = addDaysISO(pickIso, m.targetMonitoringDays);
+    if (m.status === 'Completed') {
+      if (!m.mostRecent && !m.monitoringDate) blockers.push({ ...m, expected, reason: 'Completed with no Most Recent or Monitoring Date — no completion evidence.' });
+      continue; // Completed with evidence is compliant
+    }
+    // Non-Completed: a differing Monitoring Date is informational only. Rollover
+    // advances Completed records; non-Completed records are left unchanged.
     if (m.monitoringDate && toISO(m.monitoringDate) !== expected) {
-      bad.push({ ...m, expected, reason: 'Monitoring Date does not match the Expected Monitoring Date.' });
+      warnings.push({ ...m, expected, reason: 'Monitoring Date is off this rollover’s cycle date (rollover + Target Days); non-Completed records are not changed by rollover.' });
     }
   }
-  return bad;
+  return { blockers, warnings };
 }
 
 /**

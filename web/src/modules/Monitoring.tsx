@@ -9,7 +9,7 @@ import { showToast } from '../lib/toast';
 import {
   levelDays, monStatus, isMonOverdue, rolloverLabel, monitoringPeriodEndISO, exportMonitoring, exportMonitoringXlsx,
   readMonitoringWorkbook, parseMonitoringSheet, parseCsv, completeAndRollForwardMonitoringItem,
-  rolloverOptions, defaultRolloverIso, rolloverNonCompliant, applyRollover, type ImportDiag,
+  rolloverOptions, defaultRolloverIso, rolloverValidation, applyRollover, type ImportDiag, type RolloverRow,
 } from '../lib/monitoring';
 import { DateCell } from '../components/DateCell';
 import { Modal } from '../components/Modal';
@@ -325,23 +325,50 @@ export function RolloverModal({ active, onClose, onRun }: { active: Monitoring[]
   // Default to the next rollover date on or after today (01/01 next year once
   // the current year's dates have passed).
   const [pick, setPick] = useState(() => defaultRolloverIso(toISO(todayLocal())!, yr));
-  const bad = useMemo(() => rolloverNonCompliant(active, pick), [pick, active]);
-  const nonCompliant = bad.length > 0;
+  const { blockers, warnings } = useMemo(() => rolloverValidation(active, pick), [pick, active]);
+  const nonCompliant = blockers.length > 0;
   return (
     <Modal title="Rollover Validation" wide onClose={onClose}
       foot={<><button className="btn ghost" onClick={onClose}>Cancel</button><button className="btn gold" disabled={nonCompliant} onClick={() => onRun(pick, nonCompliant)}>Run Rollover</button></>}>
       <div className="field"><label>Rollover Date</label>
         <select value={pick} onChange={(e) => setPick(e.target.value)}>{opts.map(([l, v]) => <option key={v} value={v}>{l}</option>)}</select></div>
-      {nonCompliant ? (
+      {nonCompliant && (
         <>
-          <p className="ovr" style={{ fontWeight: 600, margin: '4px 0' }}>Non-compliant records found. Cancel and correct these before rollover.</p>
-          <div className="tbl-wrap" style={{ margin: 0 }}><table>
-            <thead><tr><th>Fund</th><th>Analyst</th><th>Level</th><th>Status</th><th>Most Recent Date</th><th>Monitoring Date</th><th>Target Days</th><th>Expected Monitoring Date</th><th>Issue</th></tr></thead>
-            <tbody>{bad.map((m) => <tr key={m.id}><td>{m.fund}</td><td>{m.analyst}</td><td>{m.level}</td><td>{m.status}</td><td className="nowrap">{formatDateMMDDYYYY(m.mostRecent)}</td><td className="nowrap">{formatDateMMDDYYYY(m.monitoringDate)}</td><td className="num">{m.targetMonitoringDays}</td><td className="nowrap">{m.expected ? formatDateMMDDYYYY(m.expected) : '-'}</td><td className="ovr">{m.reason}</td></tr>)}</tbody>
-          </table></div>
+          <p className="ovr" style={{ fontWeight: 600, margin: '4px 0' }}>Data-integrity issues block rollover. Cancel and correct these first.</p>
+          <RolloverDiagTable rows={blockers} tone="block" />
         </>
-      ) : <p style={{ color: 'var(--green-tx)', fontWeight: 600 }}>All applicable records comply. Run Rollover to update the rollover anchor and reset Completed statuses.</p>}
+      )}
+      {warnings.length > 0 && (
+        <>
+          <p style={{ color: 'var(--orange-tx)', fontWeight: 600, margin: '10px 0 4px' }}>Notices — not blocking. These non-Completed records are off this rollover&apos;s cycle date and are left unchanged; Run Rollover is allowed.</p>
+          <RolloverDiagTable rows={warnings} tone="warn" />
+        </>
+      )}
+      {!nonCompliant && (
+        <p style={{ color: 'var(--green-tx)', fontWeight: 600, marginTop: warnings.length ? 8 : 0 }}>
+          {warnings.length ? 'No blockers — Run Rollover to advance Monitoring Dates and reset Completed statuses.' : 'All applicable records comply. Run Rollover to advance Monitoring Dates and reset Completed statuses.'}
+        </p>
+      )}
     </Modal>
+  );
+}
+
+/** Diagnostic table for the rollover modal (blockers or non-blocking notices). */
+function RolloverDiagTable({ rows, tone }: { rows: RolloverRow[]; tone: 'block' | 'warn' }) {
+  return (
+    <div className="tbl-wrap" style={{ margin: 0 }}><table>
+      <thead><tr><th>Fund</th><th>Analyst</th><th>Level</th><th>Status</th><th>Most Recent Date</th><th>Monitoring Date</th><th>Target Days</th><th>Expected Monitoring Date</th><th>Issue</th></tr></thead>
+      <tbody>{rows.map((m) => (
+        <tr key={m.id}>
+          <td>{m.fund}</td><td>{m.analyst}</td><td>{m.level}</td><td>{m.status}</td>
+          <td className="nowrap">{formatDateMMDDYYYY(m.mostRecent)}</td>
+          <td className="nowrap">{formatDateMMDDYYYY(m.monitoringDate)}</td>
+          <td className="num">{m.targetMonitoringDays}</td>
+          <td className="nowrap">{m.expected ? formatDateMMDDYYYY(m.expected) : '-'}</td>
+          <td className={tone === 'block' ? 'ovr' : undefined}>{m.reason}</td>
+        </tr>
+      ))}</tbody>
+    </table></div>
   );
 }
 

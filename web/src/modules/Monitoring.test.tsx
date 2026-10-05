@@ -10,10 +10,10 @@ const mon = (p: Partial<Monitoring>): Monitoring => ({
 });
 
 describe('RolloverModal — non-compliant diagnostics', () => {
-  it('exposes stored Status, Most Recent Date, and the Issue text for a blocking row', () => {
+  it('exposes stored Status, Most Recent Date, and the Issue text, and does NOT block on a date mismatch', () => {
     // Level 1 applies to every rollover boundary, and monitoringDate 2026-08-02 is
-    // never (rollover + 14) — those land on a 15th — so this row blocks regardless
-    // of which rollover date is defaulted/selected.
+    // never (rollover + 14) — those land on a 15th — so this row is a non-blocking
+    // warning regardless of which rollover date is defaulted/selected.
     render(<RolloverModal active={[mon({})]} onClose={() => {}} onRun={() => {}} />);
 
     // diagnostic columns present
@@ -26,10 +26,19 @@ describe('RolloverModal — non-compliant diagnostics', () => {
 
     // STORED status is shown verbatim (not the computed "Overdue")
     expect(screen.getByText('In Progress')).toBeInTheDocument();
-    // the issue reason renders
-    expect(screen.getByText(/does not match the Expected Monitoring Date/i)).toBeInTheDocument();
+    // the mismatch now reads as a non-blocking notice, not a blocker
+    expect(screen.getByText(/not changed by rollover/i)).toBeInTheDocument();
     // a mm/dd/yyyy date (Most Recent) is shown, internal id is not
     expect(screen.getByText('06/10/2026')).toBeInTheDocument();
     expect(screen.queryByText('m1')).not.toBeInTheDocument();
+
+    // Run Rollover is ENABLED — a date mismatch no longer blocks
+    expect(screen.getByRole('button', { name: 'Run Rollover' })).toBeEnabled();
+  });
+
+  it('BLOCKS (disables Run Rollover) for a Completed record with no date evidence', () => {
+    render(<RolloverModal active={[mon({ status: 'Completed', mostRecent: null, monitoringDate: null })]} onClose={() => {}} onRun={() => {}} />);
+    expect(screen.getByText(/no completion evidence/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Run Rollover' })).toBeDisabled();
   });
 });
