@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { toISO, todayLocal, addDaysISO } from './dates';
-import { parseLevel, levelDays, monStatus, isMonOverdue, rolloverLabel, monitoringPeriodEndISO, excelToISO, parseMonitoringSheet, completeAndRollForwardMonitoringItem, defaultRolloverIso, rolloverNonCompliant, applyRollover, repairTargetDays, repairTargetDaysDiag } from './monitoring';
+import { parseLevel, levelDays, monStatus, isMonOverdue, rolloverLabel, monitoringPeriodEndISO, excelToISO, parseMonitoringSheet, completeAndRollForwardMonitoringItem, defaultRolloverIso, rolloverNonCompliant, applyRollover } from './monitoring';
 import type { Monitoring } from './domain';
 
 const mon = (p: Partial<Monitoring>): Monitoring => ({
@@ -199,45 +199,33 @@ describe('parseMonitoringSheet', () => {
   });
 });
 
-describe('repairTargetDays / repairTargetDaysDiag', () => {
-  it('repairs bad Level 1 targets (14/55/77) to 90, L2 to 180, L3 to 365', () => {
+describe('custom targetMonitoringDays are preserved and drive the next cycle', () => {
+  it('a custom Level 1 target (14) is an intentional offset — rollover does not normalize it', () => {
+    // 07/01/2026 + 14 = 07/15/2026
+    const recs = [mon({ level: 'Level 1', status: 'Completed', mostRecent: '2026-05-01', monitoringDate: '2026-06-17', targetMonitoringDays: 14 })];
+    const out = applyRollover(recs, '2026-07-01');
+    expect(out[0].targetMonitoringDays).toBe(14); // preserved, not overwritten to 90
+    expect(out[0].monitoringDate).toBe('2026-07-15'); // rollover + its own target
+    expect(out[0].status).toBe('Not Started');
+    expect(out[0].mostRecent).toBe('2026-05-01'); // evidence kept
+  });
+
+  it('non-Completed validation uses the record’s own target (07/01 + 14 = 07/15)', () => {
+    const match = [mon({ level: 'Level 1', status: 'In Progress', monitoringDate: '2026-07-15', targetMonitoringDays: 14 })];
+    expect(rolloverNonCompliant(match, '2026-07-01')).toHaveLength(0); // on its computed date -> compliant
+    const off = [mon({ level: 'Level 1', status: 'In Progress', monitoringDate: '2026-08-01', targetMonitoringDays: 14 })];
+    expect(rolloverNonCompliant(off, '2026-07-01')[0].expected).toBe('2026-07-15');
+  });
+
+  it('records with different custom targets (55, 77) keep their own offsets', () => {
     const recs = [
-      mon({ fund: 'A', level: 'Level 1', targetMonitoringDays: 14 }),
-      mon({ fund: 'B', level: 'Level 1', targetMonitoringDays: 55 }),
-      mon({ fund: 'C', level: 'Level 1', targetMonitoringDays: 77 }),
-      mon({ fund: 'D', level: 'Level 2', targetMonitoringDays: 90 }),
-      mon({ fund: 'E', level: 'Level 3', targetMonitoringDays: 90 }),
+      mon({ level: 'Level 1', status: 'Completed', mostRecent: '2026-05-01', targetMonitoringDays: 55 }),
+      mon({ level: 'Level 2', status: 'Completed', mostRecent: '2026-05-01', targetMonitoringDays: 77 }),
     ];
-    const out = repairTargetDays(recs);
-    expect(out.map((m) => m.targetMonitoringDays)).toEqual([90, 90, 90, 180, 365]);
-  });
-
-  it('does not change dates, status, onsite/compliance, archived, or other fields', () => {
-    const r = mon({ fund: 'Acore', analyst: 'Mike Gregory', level: 'Level 1', targetMonitoringDays: 14, mostRecent: '2026-01-15', monitoringDate: '2026-07-13', status: 'Completed', annualOnsite: true, complianceCheck: true, archived: true });
-    const out = repairTargetDays([r])[0];
-    expect(out.targetMonitoringDays).toBe(90);
-    expect(out).toMatchObject({ fund: 'Acore', analyst: 'Mike Gregory', level: 'Level 1', mostRecent: '2026-01-15', monitoringDate: '2026-07-13', status: 'Completed', annualOnsite: true, complianceCheck: true, archived: true });
-  });
-
-  it('leaves records already at the level standard untouched (same object reference)', () => {
-    const good = mon({ level: 'Level 1', targetMonitoringDays: 90 });
-    const out = repairTargetDays([good]);
-    expect(out[0]).toBe(good); // unchanged reference
-  });
-
-  it('diagnostic counts only records that will change, by level', () => {
-    const recs = [
-      mon({ level: 'Level 1', targetMonitoringDays: 14 }),
-      mon({ level: 'Level 1', targetMonitoringDays: 90 }), // already ok
-      mon({ level: 'Level 2', targetMonitoringDays: 77 }),
-      mon({ level: 'Level 3', targetMonitoringDays: 365 }), // already ok
-    ];
-    expect(repairTargetDaysDiag(recs)).toEqual({ l1: 1, l2: 1, l3: 0, total: 2 });
-  });
-
-  it('after repair, a 10/01/2026 Level 1 record expects 12/30/2026', () => {
-    const repaired = repairTargetDays([mon({ level: 'Level 1', targetMonitoringDays: 14 })])[0];
-    expect(repaired.targetMonitoringDays).toBe(90);
-    expect(addDaysISO('2026-10-01', repaired.targetMonitoringDays)).toBe('2026-12-30');
+    const out = applyRollover(recs, '2026-01-01'); // Jan applies to all levels
+    expect(out[0].targetMonitoringDays).toBe(55);
+    expect(out[0].monitoringDate).toBe(addDaysISO('2026-01-01', 55));
+    expect(out[1].targetMonitoringDays).toBe(77);
+    expect(out[1].monitoringDate).toBe(addDaysISO('2026-01-01', 77));
   });
 });

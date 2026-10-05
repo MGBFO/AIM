@@ -25,7 +25,7 @@ export function Confirm({ title, message, confirmLabel, onConfirm, onCancel }: C
         </>
       }
     >
-      <p style={{ margin: 0, fontSize: '14.5px', whiteSpace: 'pre-wrap' }}>{message}</p>
+      <p style={{ margin: 0, fontSize: '14.5px' }}>{message}</p>
     </Modal>
   );
 }
