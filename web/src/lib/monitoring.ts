@@ -2,7 +2,7 @@
    Monitoring helpers + spreadsheet import parser — ported from the spec.
    ========================================================================== */
 import * as XLSX from 'xlsx';
-import { parseLocalDate, todayLocal, formatDateMMDDYYYY, addDaysISO } from './dates';
+import { parseLocalDate, todayLocal, formatDateMMDDYYYY, addDaysISO, toISO } from './dates';
 import { normalizeAnalystName } from './roster';
 import { uid } from './util';
 import { download } from './format';
@@ -64,6 +64,90 @@ export function rolloverLabel(iso: string | null): string {
   const d = parseLocalDate(iso)!;
   const q = Math.floor(d.getMonth() / 3) + 1;
   return 'Q' + q + ' ' + d.getFullYear();
+}
+
+/* ─── rollover validation + apply ────────────────────────────────────────────
+   The rollover schedule: which levels roll on which boundary month (0-indexed).
+   Apr → L1; Jul → L1+L2; Oct → L1; Jan → all three. */
+export const ROLLOVER_APPLIES: Record<number, string[]> = {
+  3: ['Level 1'], 6: ['Level 1', 'Level 2'], 9: ['Level 1'], 0: ['Level 1', 'Level 2', 'Level 3'],
+};
+
+/** The four rollover dropdown options for a year: [label mm/dd/yyyy, iso]. */
+export function rolloverOptions(year: number): [string, string][] {
+  return [
+    [`04/01/${year}`, `${year}-04-01`],
+    [`07/01/${year}`, `${year}-07-01`],
+    [`10/01/${year}`, `${year}-10-01`],
+    [`01/01/${year + 1}`, `${year + 1}-01-01`],
+  ];
+}
+
+/**
+ * Default rollover selection: the first rollover date on or after today. If
+ * today is after every rollover date in `year`, falls through to 01/01 of the
+ * next year (always present as the last option). ISO yyyy-mm-dd sorts
+ * chronologically, so a lexical `>=` compare is correct.
+ */
+export function defaultRolloverIso(todayIso: string, year: number): string {
+  const opts = rolloverOptions(year);
+  return (opts.find(([, v]) => v >= todayIso) || opts[opts.length - 1])[1];
+}
+
+export interface RolloverBadRow extends Monitoring {
+  expected: string | null;
+  reason: string;
+}
+
+/**
+ * Non-compliant rollover records for a chosen rollover date. Completed records
+ * are treated as compliant when there is completion evidence — a Most Recent
+ * Date, or a Monitoring Date we can carry over; only a Completed record missing
+ * BOTH is blocked. Non-Completed applicable records keep the existing
+ * expected-date rule exactly (expected = rollover date + Target Monitoring Days;
+ * flagged when a present Monitoring Date differs). The expected-date formula is
+ * unchanged.
+ */
+export function rolloverNonCompliant(active: Monitoring[], pickIso: string): RolloverBadRow[] {
+  const d = parseLocalDate(pickIso)!;
+  const applies = ROLLOVER_APPLIES[d.getMonth()] || ['Level 1'];
+  const bad: RolloverBadRow[] = [];
+  for (const m of active) {
+    if (m.archived || !applies.includes(m.level)) continue;
+    if (m.status === 'Completed') {
+      if (m.mostRecent || m.monitoringDate) continue; // has completion evidence
+      bad.push({ ...m, expected: null, reason: 'Completed with no Most Recent or Monitoring Date — no completion evidence.' });
+      continue;
+    }
+    const expected = addDaysISO(pickIso, m.targetMonitoringDays);
+    if (m.monitoringDate && toISO(m.monitoringDate) !== expected) {
+      bad.push({ ...m, expected, reason: 'Monitoring Date does not match the Expected Monitoring Date.' });
+    }
+  }
+  return bad;
+}
+
+/**
+ * Apply a rollover to the monitoring list for a chosen rollover date. For each
+ * applicable (non-archived, in-scope level) record: preserve completion
+ * evidence — a Completed record with no Most Recent Date but a Monitoring Date
+ * keeps that date as Most Recent before any reset — then reset Completed status
+ * to Not Started, and clear Annual Onsite / Compliance Check for Level 1 on the
+ * Jan 1 boundary. Monitoring Date is left to the existing next-date logic
+ * (unchanged here). Returns a new array; archived/out-of-scope rows pass through.
+ */
+export function applyRollover(monitoring: Monitoring[], iso: string): Monitoring[] {
+  const d = parseLocalDate(iso)!;
+  const isJan1 = d.getMonth() === 0 && d.getDate() === 1;
+  const applies = ROLLOVER_APPLIES[d.getMonth()] || ['Level 1'];
+  return monitoring.map((m) => {
+    if (m.archived || !applies.includes(m.level)) return m;
+    const nm = { ...m };
+    if (nm.status === 'Completed' && !nm.mostRecent && nm.monitoringDate) nm.mostRecent = nm.monitoringDate;
+    if (nm.status === 'Completed') nm.status = 'Not Started';
+    if (isJan1 && m.level === 'Level 1') { nm.annualOnsite = false; nm.complianceCheck = false; }
+    return nm;
+  });
 }
 
 /* ─── import ─────────────────────────────────────────────────────────────── */
